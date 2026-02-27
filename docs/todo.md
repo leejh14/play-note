@@ -40,32 +40,24 @@
   - Session.status: scheduled → confirmed → roster_locked → done(옵션)
   - 로스터/팀/라인 변경은 "attachment 업로드 전까지" 가능
   - attachment가 1장 이상이면 잠김, admin unlock 가능
-- 구체화 필요
-  - [ ] 잠김 계산 방식(attachmentCount, adminUnlocked flag 등)
-  - [ ] 잠김 상태에서 허용/금지 액션 목록(정확한 ACL)
-  - [ ] attachment 삭제로 다시 0장이 되면 잠김 해제 여부
+- [x] 잠김 계산: Session에 `isAdminUnlocked` boolean. `effectiveLocked = (attachmentCount > 0) && !isAdminUnlocked`
+- [x] 잠김 ACL: 구조 변경(roster/teamPreset/matchTeamMember/match생성)만 잠금, 기록(댓글/첨부/결과확정/상태전이)은 항상 허용
+- [x] 0장 시 자동 해제: **자동 해제** (공식에 의해 count=0이면 자동으로 unlocked)
 
 ### 2.4.1 Aggregate / Bounded Context / 모듈 경계
 
-- [ ] Aggregate Root 식별 (Session, Match, Friend 등 어디까지가 하나의 Aggregate?)
-- [ ] Bounded Context 경계 (몇 개의 도메인 모듈로 나눌지)
-- [ ] 각 Aggregate 내부 Entity / Value Object 분류
-- [ ] NestJS 모듈 구조 (educore 패턴: Infrastructure/Application/Presentation 3모듈)
-- [ ] Repository 인터페이스 목록
+- [x] Aggregate Root 6개: Friend, Session, Comment, Match, Attachment, ExtractionJob
+- [x] BC/모듈 5개: `friend`, `session`(+Comment), `match`, `attachment`(+ExtractionJob), `statistics`(읽기 전용)
+- [x] 내부 Entity: Session→(Attendance, RosterMember, TeamPresetMember), Match→(MatchTeamMember)
+- [x] NestJS 모듈 구조: educore 패턴 (Infrastructure/Application/Presentation 3모듈) 적용
+- [x] Repository 6개: IFriendRepository, ISessionRepository, ICommentRepository, IMatchRepository, IAttachmentRepository, IExtractionJobRepository
 
 ### 2.5 데이터 모델(ERD / 테이블)
 
-- 확정된 핵심 도메인(요구사항)
-  - Friend(전역 주소록, 단톡방 1개 고정)
-  - Content / Session / Attendance / Roster
-  - SessionTeamPreset(A/B 1회)
-  - Comment(텍스트 only)
-  - Attachment(세션당 총 10장)
-  - LoL: Match 1..N + Team(A/B) vs Side(Blue/Red) 분리 + lane + champion(수동)
-- 구체화 필요
-  - [ ] MikroORM Entity 설계(필드/인덱스/제약)
-  - [ ] 세션당 10장 제한을 DB+API에서 어떻게 강제할지
-  - [ ] 통계 산출에 필요한 최소 필드 확정
+- [x] Entity 필드/인덱스/제약 설계 완료 (11개 테이블, ERD mermaid로 문서화)
+- [x] Friend에서 aliases 제거, riotGameName/riotTagLine이 OCR 매칭용
+- [x] 세션당 10장 제한: Presign에서 count 확인 → Complete에서 트랜잭션 내 `FOR UPDATE` 재확인
+- [x] 통계 필드: 이미 설계에 포함됨 (MatchTeamMember.friendId/team/lane/champion + Match.winnerSide/teamASide/isConfirmed)
 
 ---
 
