@@ -10,8 +10,8 @@
 
 - [x] web(Next.js): **순수 프론트** (UI 렌더링 + GraphQL Client + S3 presigned 업로드 수행, BFF 없음)
 - [x] api(NestJS GraphQL): **모든 비즈니스 로직** (UseCase/도메인 로직 + GraphQL endpoint + 토큰 검증 + presigned URL 발급 + 첨부 제한 강제 + OCR Job 생성). OCR 실행만 worker로 분리.
-- [~] worker(ocr/분석): 필요 확정. 운영 방식은 **리서치 후 결정** (선택지: A. NestJS worker에서 Python CLI 호출 / B. 별도 Python 서비스)
-- [x] reverse proxy(nginx): 필요 확정. 라우팅: `/graphql` → api(:4000), 나머지 `/*` → web(:3000). TLS 종료 담당. worker는 외부 노출 없음(내부 DB 폴링).
+- [x] worker(ocr/분석): **Graphile Worker** (PostgreSQL SKIP LOCKED 기반). 초기: task에서 Python CLI 호출(A), 이후 별도 서비스(B)로 교체 가능. Domain `IExtractionService` 인터페이스 + DIP.
+- [x] reverse proxy(nginx): 필요 확정. 라우팅: `/graphql` → api(:4000), 나머지 `/*` → web(:3000). TLS 종료 담당. worker는 외부 노출 없음.
 
 ### 2.2 GraphQL 설계
 
@@ -46,11 +46,11 @@
 
 ### 2.4.1 Aggregate / Bounded Context / 모듈 경계
 
-- [x] Aggregate Root 6개: Friend, Session, Comment, Match, Attachment, ExtractionJob
-- [x] BC/모듈 5개: `friend`, `session`(+Comment), `match`, `attachment`(+ExtractionJob), `statistics`(읽기 전용)
+- [x] Aggregate Root 6개: Friend, Session, Comment, Match, Attachment, ExtractionResult
+- [x] BC/모듈 5개: `friend`, `session`(+Comment), `match`, `attachment`(+ExtractionResult), `statistics`(읽기 전용)
 - [x] 내부 Entity: Session→(Attendance, RosterMember, TeamPresetMember), Match→(MatchTeamMember)
 - [x] NestJS 모듈 구조: educore 패턴 (Infrastructure/Application/Presentation 3모듈) 적용
-- [x] Repository 6개: IFriendRepository, ISessionRepository, ICommentRepository, IMatchRepository, IAttachmentRepository, IExtractionJobRepository
+- [x] Repository 6개: IFriendRepository, ISessionRepository, ICommentRepository, IMatchRepository, IAttachmentRepository, IExtractionResultRepository
 
 ### 2.5 데이터 모델(ERD / 테이블)
 
@@ -65,42 +65,27 @@
 
 ### 2.6 파일 업로드/스토리지
 
-- 확정된 정책(요구사항)
-  - 댓글에는 이미지 불가
-  - 첨부는 세션/매치에 귀속
-  - 세션당 총 10장
-  - 롤 첨부는 "게임 종료 결과창 1종"만
-- 구체화 필요
-  - [ ] S3 업로드 방식(presigned PUT/POST)
-  - [ ] 업로드 완료 확인 방식(complete mutation)
-  - [ ] 메타데이터 저장(size, contentType, width/height)
-  - [ ] CDN/이미지 리사이즈(선택)
+- [x] S3 업로드 방식: **Presigned PUT**
+- [x] 다중 업로드: **배치 API** (`createPresignedUploads` / `completeUploads`) — 모바일 갤러리 다중 선택 대응
+- [x] 단건 API도 유지 (하위 호환)
+- [x] 10장 제한: presign에서 `현재 + N <= 10` 확인, complete에서 FOR UPDATE 재확인
+- [x] 메타데이터: size, contentType, width/height 저장 (completeUpload input)
+- [x] CDN/리사이즈: **MVP 스킵**. S3 직접 URL, 필요 시 CloudFront 추가
 
-### 2.7 OCR/분석 파이프라인(롤 결과창 1종)
+### 2.7 OCR/분석 파이프라인
 
-- 확정된 입력
-  - LoL 결과창 스샷 1종만 지원
-  - 매치마다 blue/red 진영은 변경 가능
-  - 진영 관련 값은 스샷 기반 확정
-- 구체화 필요
-  - [ ] ExtractionJob 설계(상태, 재시도, 모델 버전)
-  - [ ] 결과 포맷(JSON schema: winnerSide, teamA_side, confidence 등)
-  - [ ] 자동 추출 실패 시 UX(수동 확정 플로우)
+- [x] ExtractionResult (shadow table): PENDING / DONE / FAILED. 재시도는 Graphile Worker 내장 retry
+- [x] 결과 포맷: output json 스키마 확정 (`ocr_스팩.md` 5.3 참조)
+- [x] 실패 시 UX: UI에 "자동 추출 실패" 표시, `confirmMatchResult`로 수동 확정 (항상 가능)
 
 ### 2.8 통계(집계)
 
-- 확정된 지표(요구사항)
-  - 승률, 선호 라인, 자주 이긴 챔피언
-  - 확정된 match만 집계
-- 구체화 필요
-  - [ ] 쿼리 집계 vs 캐시 테이블(초기엔 쿼리 집계 권장)
-  - [ ] 통계 범위(전체 기간 / 기간 필터 / 컨텐츠 필터)
+- [x] **on-demand SQL GROUP BY 집계** (데이터 소량, 캐시 불필요)
+- [x] 범위: 전체 기간 기본 + 선택적 기간 필터 (LoL만)
+- [x] 성능 문제 시 FriendStats 캐시 테이블 도입 가능
 
 ### 2.9 운영/관리(Admin)
 
-- 확정된 기능
-  - admin unlock 가능
-- 구체화 필요
-  - [ ] admin 전용 mutation/화면 범위
-  - [ ] 데이터 정리(스팸 댓글/잘못된 첨부 삭제)
-  - [ ] 토큰 재발급/폐기
+- [x] MVP: **별도 admin 화면 없음** — 기존 UI에서 adminToken 접속 시 unlock 버튼 노출
+- [x] bulk delete 등 관리 기능은 v1+
+- [x] 토큰 재발급: MVP 스킵 (Decision Log 참조)
