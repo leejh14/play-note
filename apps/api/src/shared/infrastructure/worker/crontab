@@ -1,0 +1,2 @@
+# 매일 19:00 UTC에 auto_done_sessions 실행
+0 19 * * * auto_done_sessions

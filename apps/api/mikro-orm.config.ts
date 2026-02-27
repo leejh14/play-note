@@ -1,6 +1,8 @@
-import { Options } from '@mikro-orm/postgresql';
+import { defineConfig } from '@mikro-orm/postgresql';
+import { Migrator } from '@mikro-orm/migrations';
 
-const config: Options = {
+const config = defineConfig({
+  extensions: [Migrator],
   entities: ['./dist/**/*.orm-entity.js'],
   entitiesTs: ['./src/**/*.orm-entity.ts'],
   dbName: process.env.DB_NAME ?? 'playnote',
@@ -12,6 +14,6 @@ const config: Options = {
     path: './migrations',
     pathTs: './src/migrations',
   },
-};
+});
 
 export default config;

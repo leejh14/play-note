@@ -5,5 +5,11 @@
   "compilerOptions": {
     "tsConfigPath": "tsconfig.build.json",
     "plugins": ["@nestjs/graphql"]
-  }
+  },
+  "assets": [
+    {
+      "include": "shared/infrastructure/worker/crontab",
+      "outDir": "dist"
+    }
+  ]
 }
