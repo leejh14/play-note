@@ -1,10 +1,10 @@
-# PlayNote — 시스템 설계 TODO
+# PlayNote — 설계 & 구현 TODO
 
 > 진행 상태: `[ ]` 미착수 · `[~]` 진행중 · `[x]` 완료 · `[-]` 스킵/불필요
 
 ---
 
-## Phase 1: 기술 기반 결정
+## Phase 1: 기술 기반 결정 ✅
 
 ### 2.1 서비스 경계 / 컴포넌트
 
@@ -32,7 +32,7 @@
 
 ---
 
-## Phase 2: 도메인 핵심
+## Phase 2: 도메인 핵심 ✅
 
 ### 2.4 도메인/상태 머신
 
@@ -61,7 +61,7 @@
 
 ---
 
-## Phase 3: 기능별 상세
+## Phase 3: 기능별 상세 ✅
 
 ### 2.6 파일 업로드/스토리지
 
@@ -89,3 +89,45 @@
 - [x] MVP: **별도 admin 화면 없음** — 기존 UI에서 adminToken 접속 시 unlock 버튼 노출
 - [x] bulk delete 등 관리 기능은 v1+
 - [x] 토큰 재발급: MVP 스킵 (Decision Log 참조)
+
+---
+
+## Phase 4: 설계 보완 (구현 전 필수)
+
+### 4.1 누락된 유즈케이스 작성 → `요구사항_명세서.md`
+
+- [x] **UC-9: Friend 관리 (admin CRUD)** — 목록 조회 + 추가 + 수정 + 아카이브/복원 (`요구사항_명세서.md`)
+- [x] **UC-1-4: 세션 삭제** — hard delete + cascade 범위 + 확인 다이얼로그 + S3 비동기 삭제 (`요구사항_명세서.md`)
+- [x] **UC-1-3: 세션 수정 (제목/날짜)** — done 상태 외 수정 가능, 공유 링크 영향 없음 (`요구사항_명세서.md`)
+- [x] **UC-4-1: 매치 삭제** — isConfirmed=true면 삭제 불가, cascade + effectiveLocked 재계산 (`요구사항_명세서.md`)
+
+### 4.2 삭제 정책 & cascade 규칙 → `시스템디자인.md`
+
+- [x] **세션 삭제 cascade 설계**: admin only + 연관 모든 자식 ON DELETE CASCADE + S3 비동기 삭제 (`시스템디자인.md` 4.3-A)
+- [x] **S3 파일 정리**: 비동기 삭제 — 트랜잭션 후 Graphile Worker job dispatch (`시스템디자인.md` 4.3-A)
+- [x] **매치 삭제 cascade 설계**: admin only + isConfirmed=false만 + 자식 ON DELETE CASCADE (`시스템디자인.md` 4.3-A)
+- [x] **soft delete vs hard delete**: hard delete 확정 (Friend만 archive/soft delete) (`시스템디자인.md` 4.3-A)
+
+### 4.3 API Surface 보완 → `시스템디자인.md` 섹션 11
+
+- [x] **`deleteSession(sessionId)` 뮤테이션**: admin only, cascade (4.3-A 참조) — `시스템디자인.md` 섹션 11
+- [x] **`updateSession(sessionId, input)` 뮤테이션**: editor/admin, `{ title?, startsAt? }`, done이면 거절 — `시스템디자인.md` 섹션 11
+- [x] **`deleteMatch(matchId)` 뮤테이션**: admin only, isConfirmed=false만 — `시스템디자인.md` 섹션 11
+- [x] **`markDone` + `reopenSession` 확정**: markDone=editor/admin, reopenSession=admin only, 자동 전환(3일 경과, Graphile Worker cron) — `시스템디자인.md` 섹션 4.2 + 11, `요구사항_명세서.md` 섹션 4.5
+
+### 4.4 카카오톡 공유 보완
+
+- [x] UC-1-2 카카오톡 링크 공유 유즈케이스 작성 (`요구사항_명세서.md`)
+- [x] 시스템 디자인 섹션 3-A 카카오톡 공유 설계 (`시스템디자인.md`)
+- [x] **OG 메타 태그용 공개 쿼리 설계**: `sessionPreview(sessionId)` 공개 GraphQL 쿼리 — 토큰 불필요, `{ contentType, title, startsAt }` 반환 (`시스템디자인.md` 섹션 11 + 3-A)
+
+---
+
+## Phase 5: 구현 중 결정 가능 (우선순위 낮음)
+
+- [ ] 프론트엔드 라우팅 구조: `/s/{sessionId}`, `/stats`, `/stats/{friendId}`, `/friends` 등 URL 패턴
+- [ ] 에러 UX: 만료/잘못된 토큰, 삭제된 세션 접근 시 화면 설계
+- [ ] init.sql 초기 Friend 데이터 구성
+- [ ] Kakao Developers 앱 등록 + 환경 변수 설정
+- [ ] Docker Compose 구성 파일 작성
+- [ ] 도메인 / SSL 인증서 설정
