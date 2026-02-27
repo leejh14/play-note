@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "api": "yarn workspace @playnote/api",
+    "web": "yarn workspace @playnote/web",
+    "build": "yarn api build && yarn web build",
+    "lint": "yarn api lint && yarn web lint"
+  }
+}
