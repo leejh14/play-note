@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  /* From pencil-new.pen variables */
+  --pn-primary: #2196f3;
+  --pn-primary-light: #e3f2fd;
+  --pn-pink: #d81b60;
+  --pn-pink-soft: #ffd6ff;
+
+  --pn-bg-page: #ffffff;
+  --pn-bg-card: #f5f5f5;
+
+  --pn-border: #e0e0e0;
+
+  --pn-text-primary: #18181b;
+  --pn-text-secondary: #616161;
+  --pn-text-muted: #9e9e9e;
+  --pn-text-on-primary: #ffffff;
+
+  --pn-gray-100: #f5f5f5;
+  --pn-gray-300: #e0e0e0;
+  --pn-gray-500: #9e9e9e;
+  --pn-gray-700: #616161;
+  --pn-gray-900: #212121;
+
+  --pn-radius-sm: 8px;
+  --pn-radius-md: 12px;
+  --pn-radius-lg: 16px;
+  --pn-radius-full: 999px;
+
+  --pn-spacing-xs: 4px;
+  --pn-spacing-sm: 8px;
+  --pn-spacing-md: 12px;
+  --pn-spacing-base: 16px;
+  --pn-spacing-lg: 20px;
+  --pn-spacing-xl: 24px;
+  --pn-spacing-2xl: 32px;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--pn-bg-page);
+    color: var(--pn-text-primary);
+    font-family:
+      "Pretendard Variable",
+      Pretendard,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+  }
+}
