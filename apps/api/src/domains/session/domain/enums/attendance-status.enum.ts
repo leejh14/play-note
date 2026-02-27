@@ -1,0 +1,5 @@
+export enum AttendanceStatus {
+  UNDECIDED = 'UNDECIDED',
+  ATTENDING = 'ATTENDING',
+  NOT_ATTENDING = 'NOT_ATTENDING',
+}

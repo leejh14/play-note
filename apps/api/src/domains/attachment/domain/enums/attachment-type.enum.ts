@@ -1,0 +1,4 @@
+export enum AttachmentType {
+  FUTSAL_PHOTO = 'FUTSAL_PHOTO',
+  LOL_RESULT_SCREEN = 'LOL_RESULT_SCREEN',
+}
