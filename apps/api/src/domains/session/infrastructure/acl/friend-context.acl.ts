@@ -1,10 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { IFriendContextAcl } from '@domains/session/application/acl/friend-context.acl.interface';
 import { IFriendRepository } from '@domains/friend/domain/repositories/friend.repository.interface';
 import { FRIEND_REPOSITORY } from '@domains/friend/domain/constants';
-
-export interface IFriendContextAcl {
-  getActiveFriendIds(): Promise<string[]>;
-}
 
 @Injectable()
 export class FriendContextAcl implements IFriendContextAcl {

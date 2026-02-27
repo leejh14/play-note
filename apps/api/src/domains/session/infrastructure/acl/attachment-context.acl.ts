@@ -1,10 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { IAttachmentContextAcl } from '@domains/session/application/acl/attachment-context.acl.interface';
 import { IAttachmentRepository } from '@domains/attachment/domain/repositories/attachment.repository.interface';
 import { ATTACHMENT_REPOSITORY } from '@domains/attachment/domain/constants';
-
-export interface IAttachmentContextAcl {
-  countBySessionId(sessionId: string): Promise<number>;
-}
 
 @Injectable()
 export class AttachmentContextAcl implements IAttachmentContextAcl {

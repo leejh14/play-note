@@ -8,7 +8,12 @@ import { MikroSessionRepository } from './persistence/mikro-session.repository';
 import { MikroCommentRepository } from './persistence/mikro-comment.repository';
 import { FriendContextAcl } from './acl/friend-context.acl';
 import { AttachmentContextAcl } from './acl/attachment-context.acl';
-import { SESSION_REPOSITORY, COMMENT_REPOSITORY } from '@domains/session/domain/constants';
+import {
+  SESSION_REPOSITORY,
+  COMMENT_REPOSITORY,
+  FRIEND_CONTEXT_ACL,
+  ATTACHMENT_CONTEXT_ACL,
+} from '@domains/session/domain/constants';
 import { FriendInfrastructureModule } from '@domains/friend/infrastructure/friend.infrastructure.module';
 import { AttachmentInfrastructureModule } from '@domains/attachment/infrastructure/attachment.infrastructure.module';
 
@@ -26,14 +31,14 @@ import { AttachmentInfrastructureModule } from '@domains/attachment/infrastructu
   providers: [
     { provide: SESSION_REPOSITORY, useClass: MikroSessionRepository },
     { provide: COMMENT_REPOSITORY, useClass: MikroCommentRepository },
-    FriendContextAcl,
-    AttachmentContextAcl,
+    { provide: FRIEND_CONTEXT_ACL, useClass: FriendContextAcl },
+    { provide: ATTACHMENT_CONTEXT_ACL, useClass: AttachmentContextAcl },
   ],
   exports: [
     SESSION_REPOSITORY,
     COMMENT_REPOSITORY,
-    FriendContextAcl,
-    AttachmentContextAcl,
+    FRIEND_CONTEXT_ACL,
+    ATTACHMENT_CONTEXT_ACL,
   ],
 })
 export class SessionInfrastructureModule {}

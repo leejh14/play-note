@@ -1,16 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { IFriendRepository } from '@domains/friend/domain/repositories/friend.repository.interface';
 import { FRIEND_REPOSITORY } from '@domains/friend/domain/constants';
-
-export interface FriendSummaryDto {
-  readonly id: string;
-  readonly displayName: string;
-}
-
-export interface IFriendStatsContextAcl {
-  getActiveFriends(input: { includeArchived?: boolean }): Promise<FriendSummaryDto[]>;
-}
+import {
+  IFriendStatsContextAcl,
+  FriendSummaryDto,
+} from '@domains/statistics/application/acl/friend-stats-context.acl.interface';
 
 @Injectable()
 export class FriendStatsContextAcl implements IFriendStatsContextAcl {

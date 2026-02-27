@@ -1,31 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
 import { MatchOrmEntity } from '@domains/match/infrastructure/persistence/match.orm-entity';
-import { MatchTeamMemberOrmEntity } from '@domains/match/infrastructure/persistence/match-team-member.orm-entity';
 import { Lane } from '@shared/domain/enums/lane.enum';
-
-export interface MatchStatsMemberRawDto {
-  readonly friendId: string;
-  readonly team: string;
-  readonly lane: Lane;
-  readonly champion: string | null;
-}
-
-export interface MatchStatsRawDto {
-  readonly matchId: string;
-  readonly sessionId: string;
-  readonly winnerSide: string;
-  readonly teamASide: string;
-  readonly members: MatchStatsMemberRawDto[];
-}
-
-export interface IMatchStatsContextAcl {
-  getConfirmedMatchStats(input: {
-    friendId?: string;
-    startDate?: Date;
-    endDate?: Date;
-  }): Promise<MatchStatsRawDto[]>;
-}
+import {
+  IMatchStatsContextAcl,
+  MatchStatsRawDto,
+} from '@domains/statistics/application/acl/match-stats-context.acl.interface';
 
 @Injectable()
 export class MatchStatsContextAcl implements IMatchStatsContextAcl {

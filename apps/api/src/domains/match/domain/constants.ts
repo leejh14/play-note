@@ -1,4 +1,5 @@
 export const MATCH_REPOSITORY = Symbol('IMatchRepository');
+export const SESSION_CONTEXT_ACL = Symbol('ISessionContextAcl');
 
 export const MATCH_ERROR_CODES = {
   MATCH_NOT_FOUND: 'MATCH_NOT_FOUND',
