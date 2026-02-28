@@ -1,11 +1,87 @@
-import Link from "next/link";
+"use client";
+
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@apollo/client";
+import { useParams } from "next/navigation";
 import { PhoneFrame } from "@/components/layout/phone-frame";
 import { StatusBar } from "@/components/layout/status-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MatchCard } from "@/components/session/match-card";
+import { TokenRequiredState } from "@/components/auth/token-required-state";
+import { ShareButtons } from "@/components/share/share-buttons";
+import {
+  AUTH_CONTEXT_QUERY,
+  COMPLETE_UPLOADS_MUTATION,
+  CONFIRM_MATCH_RESULT_MUTATION,
+  CREATE_PRESIGNED_UPLOADS_MUTATION,
+  CREATE_COMMENT_MUTATION,
+  CREATE_MATCH_FROM_PRESET_MUTATION,
+  DELETE_MATCH_MUTATION,
+  SESSION_QUERY,
+  SET_CHAMPION_MUTATION,
+  SET_LANE_MUTATION,
+} from "@/lib/graphql/operations";
+import { getGraphqlErrorMessage } from "@/lib/error-messages";
+import { tryDecodeSessionId } from "@/lib/relay-id";
+import { getShareToken, getToken } from "@/lib/token";
 import type { ReactNode } from "react";
+
+type SessionDetailData = {
+  readonly session: {
+    readonly id: string;
+    readonly title: string | null;
+    readonly startsAt: string;
+    readonly status: "SCHEDULED" | "CONFIRMED" | "DONE";
+    readonly contentType: "LOL" | "FUTSAL";
+    readonly effectiveLocked: boolean;
+    readonly attendances: Array<{
+      readonly status: "ATTENDING" | "UNDECIDED" | "NOT_ATTENDING";
+    }>;
+    readonly teamPresetMembers: Array<{
+      readonly friend: {
+        readonly id: string;
+        readonly displayName: string;
+      };
+      readonly team: "A" | "B";
+      readonly lane: string;
+    }>;
+    readonly matches: Array<{
+      readonly id: string;
+      readonly matchNo: number;
+      readonly status: string;
+      readonly isConfirmed: boolean;
+      readonly winnerSide: "BLUE" | "RED" | "UNKNOWN";
+      readonly teamASide: "BLUE" | "RED" | "UNKNOWN";
+      readonly teamMembers: Array<{
+        readonly friend: {
+          readonly id: string;
+          readonly displayName: string;
+        };
+        readonly team: "A" | "B";
+        readonly lane: "TOP" | "JG" | "MID" | "ADC" | "SUP" | "UNKNOWN";
+        readonly champion: string | null;
+      }>;
+    }>;
+    readonly attachments: Array<{
+      readonly id: string;
+      readonly url: string;
+    }>;
+    readonly comments: Array<{
+      readonly id: string;
+      readonly body: string;
+      readonly displayName: string | null;
+      readonly createdAt: string;
+    }>;
+  };
+};
+
+type AuthContextData = {
+  readonly authContext: {
+    readonly role: "EDITOR" | "ADMIN";
+  };
+};
 
 function SectionTitle({
   title,
@@ -23,54 +99,315 @@ function SectionTitle({
 }
 
 export default function SessionDetailPage() {
+  const params = useParams<{ sessionId: string }>();
+  const sessionGlobalId = decodeURIComponent(params.sessionId);
+  const localSessionId = tryDecodeSessionId(sessionGlobalId);
+  const hasToken = Boolean(localSessionId && getToken(localSessionId));
+
+  const [commentBody, setCommentBody] = useState("");
+  const [championDrafts, setChampionDrafts] = useState<Record<string, string>>({});
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  const sessionQuery = useQuery<SessionDetailData>(SESSION_QUERY, {
+    variables: {
+      sessionId: sessionGlobalId,
+    },
+    skip: !hasToken,
+  });
+  const authContextQuery = useQuery<AuthContextData>(AUTH_CONTEXT_QUERY, {
+    skip: !hasToken,
+  });
+
+  const [createMatchFromPreset, createMatchState] = useMutation(CREATE_MATCH_FROM_PRESET_MUTATION);
+  const [setLane, setLaneState] = useMutation(SET_LANE_MUTATION);
+  const [setChampion, setChampionState] = useMutation(SET_CHAMPION_MUTATION);
+  const [confirmMatchResult, confirmResultState] = useMutation(CONFIRM_MATCH_RESULT_MUTATION);
+  const [deleteMatch, deleteMatchState] = useMutation(DELETE_MATCH_MUTATION);
+  const [createComment, createCommentState] = useMutation(CREATE_COMMENT_MUTATION);
+  const [createPresignedUploads, createPresignedState] = useMutation(CREATE_PRESIGNED_UPLOADS_MUTATION);
+  const [completeUploads, completeUploadsState] = useMutation(COMPLETE_UPLOADS_MUTATION);
+
+  const session = sessionQuery.data?.session;
+  const isAdmin = authContextQuery.data?.authContext.role === "ADMIN";
+  const shareToken = localSessionId ? getShareToken(localSessionId) : null;
+
+  const teamAMembers = useMemo(
+    () => session?.teamPresetMembers.filter((member) => member.team === "A") ?? [],
+    [session?.teamPresetMembers],
+  );
+  const teamBMembers = useMemo(
+    () => session?.teamPresetMembers.filter((member) => member.team === "B") ?? [],
+    [session?.teamPresetMembers],
+  );
+
+  const onCreateMatch = async () => {
+    if (!session) return;
+    await createMatchFromPreset({
+      variables: {
+        input: {
+          sessionId: session.id,
+        },
+      },
+      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: session.id } }],
+    });
+  };
+
+  const onSetLane = async (matchId: string, friendId: string, lane: string) => {
+    await setLane({
+      variables: {
+        input: {
+          matchId,
+          friendId,
+          lane,
+        },
+      },
+      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
+    });
+  };
+
+  const onSaveChampion = async (matchId: string, friendId: string) => {
+    const key = `${matchId}:${friendId}`;
+    const champion = championDrafts[key];
+    await setChampion({
+      variables: {
+        input: {
+          matchId,
+          friendId,
+          champion: champion?.trim() || null,
+        },
+      },
+      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
+    });
+  };
+
+  const onConfirmResult = async (matchId: string, winnerSide: "BLUE" | "RED") => {
+    const targetMatch = session?.matches.find((item) => item.id === matchId);
+    const teamASide = targetMatch?.teamASide && targetMatch.teamASide !== "UNKNOWN"
+      ? targetMatch.teamASide
+      : "BLUE";
+    await confirmMatchResult({
+      variables: {
+        input: {
+          matchId,
+          teamASide,
+          winnerSide,
+        },
+      },
+      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
+    });
+  };
+
+  const onDeleteMatch = async (matchId: string) => {
+    await deleteMatch({
+      variables: {
+        input: {
+          matchId,
+        },
+      },
+      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
+    });
+  };
+
+  const onCreateComment = async () => {
+    if (!session || !commentBody.trim()) return;
+    await createComment({
+      variables: {
+        input: {
+          sessionId: session.id,
+          body: commentBody.trim(),
+        },
+      },
+      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: session.id } }],
+    });
+    setCommentBody("");
+  };
+
+  const onUploadFiles = async () => {
+    if (!session || pendingFiles.length === 0) return;
+
+    const attachmentType = session.contentType === "LOL" ? "LOL_RESULT_SCREEN" : "FUTSAL_PHOTO";
+    try {
+      setUploadMessage(null);
+
+      const createResult = await createPresignedUploads({
+        variables: {
+          input: {
+            sessionId: session.id,
+            files: pendingFiles.map((file) => ({
+              contentType: file.type || "application/octet-stream",
+              originalFileName: file.name,
+              scope: "SESSION",
+              type: attachmentType,
+            })),
+          },
+        },
+      });
+
+      const uploads: Array<{ uploadId: string; presignedUrl: string }> =
+        createResult.data?.createPresignedUploads?.uploads ?? [];
+      if (uploads.length !== pendingFiles.length) {
+        throw new Error("Presigned upload count mismatch");
+      }
+
+      await Promise.all(
+        uploads.map(async (upload, index) => {
+          const file = pendingFiles[index];
+          if (!file) throw new Error("Upload file is missing");
+          const response = await fetch(upload.presignedUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": file.type || "application/octet-stream",
+            },
+            body: file,
+          });
+          if (!response.ok) {
+            throw new Error("File upload failed");
+          }
+        }),
+      );
+
+      await completeUploads({
+        variables: {
+          input: {
+            files: pendingFiles.map((file, index) => ({
+              sessionId: session.id,
+              scope: "SESSION",
+              type: attachmentType,
+              uploadId: uploads[index]?.uploadId,
+              contentType: file.type || "application/octet-stream",
+              originalFileName: file.name,
+              size: file.size,
+            })),
+          },
+        },
+        refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: session.id } }],
+      });
+
+      setPendingFiles([]);
+      setUploadMessage("업로드가 완료되었습니다.");
+    } catch {
+      setUploadMessage("업로드에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
+  if (!hasToken) {
+    return (
+      <PhoneFrame>
+        <div className="flex min-h-screen flex-col">
+          <StatusBar />
+          <PageHeader title="Session Detail" backHref="/sessions" />
+          <div className="flex flex-1 items-center px-[16px]">
+            <TokenRequiredState />
+          </div>
+        </div>
+      </PhoneFrame>
+    );
+  }
+
+  if (sessionQuery.error) {
+    return (
+      <PhoneFrame>
+        <div className="flex min-h-screen flex-col">
+          <StatusBar />
+          <PageHeader title="Session Detail" backHref="/sessions" />
+          <div className="flex-1 px-[16px] pt-[16px]">
+            <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
+              {getGraphqlErrorMessage(
+                sessionQuery.error.graphQLErrors[0]?.extensions?.code as string | undefined,
+              )}
+            </div>
+          </div>
+        </div>
+      </PhoneFrame>
+    );
+  }
+
+  if (sessionQuery.loading || !session) {
+    return (
+      <PhoneFrame>
+        <div className="flex min-h-screen flex-col">
+          <StatusBar />
+          <PageHeader title="Session Detail" backHref="/sessions" />
+          <div className="flex flex-1 items-center justify-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
+            불러오는 중...
+          </div>
+        </div>
+      </PhoneFrame>
+    );
+  }
+
+  const busy =
+    createMatchState.loading ||
+    setLaneState.loading ||
+    setChampionState.loading ||
+    confirmResultState.loading ||
+    deleteMatchState.loading ||
+    createCommentState.loading ||
+    createPresignedState.loading ||
+    completeUploadsState.loading;
+
   return (
     <PhoneFrame>
       <div className="flex min-h-screen flex-col">
         <StatusBar />
-        <PageHeader title="Saturday Night" backHref="/sessions" />
+        <PageHeader
+          title={session.title || "Session Detail"}
+          backHref={`/s/${encodeURIComponent(session.id)}`}
+          right={
+            shareToken ? (
+              <ShareButtons
+                sessionId={session.id}
+                token={shareToken}
+                contentType={session.contentType}
+                startsAt={session.startsAt}
+                attendingCount={session.attendances.filter((item) => item.status === "ATTENDING").length}
+                totalCount={session.attendances.length}
+                title={session.title}
+              />
+            ) : undefined
+          }
+        />
 
         <div className="px-[16px]">
           <div className="flex items-center gap-[10px]">
-            <div className="text-[11px] font-[600] text-[var(--pn-text-muted)]">Mar 1, 2026 · 7:00 PM</div>
-            <Badge tone="blueSoft">Confirmed</Badge>
+            <div className="text-[11px] font-[600] text-[var(--pn-text-muted)]">
+              {new Date(session.startsAt).toLocaleString("ko-KR")}
+            </div>
+            <Badge tone={session.status === "CONFIRMED" ? "blueSoft" : "neutral"}>
+              {session.status}
+            </Badge>
+            {session.effectiveLocked ? <Badge tone="pinkSoft">Locked</Badge> : null}
           </div>
         </div>
 
         <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px]">
           <div className="flex flex-col gap-[14px]">
             <div className="flex flex-col gap-[10px]">
-              <SectionTitle
-                title="Setup"
-                right={
-                  <Link href="/s/saturday-night/setup" className="text-[11px] font-[700] text-[var(--pn-text-muted)]">
-                    Edit
-                  </Link>
-                }
-              />
+              <SectionTitle title="Setup" />
               <MatchCard>
                 <div className="grid grid-cols-2 gap-[10px]">
                   <div className="rounded-[12px] bg-[var(--pn-primary-light)] px-[10px] py-[10px]">
                     <div className="text-[11px] font-[800] text-[var(--pn-primary)]">Team A</div>
                     <div className="mt-[8px] space-y-[4px] text-[11px] font-[600] text-[var(--pn-text-primary)]">
-                      <div>Junho TOP</div>
-                      <div>Seungwoo JG</div>
-                      <div>Hyunwoo MID</div>
-                      <div>Dongwook ADC</div>
-                      <div>Taehyun SUP</div>
+                      {teamAMembers.map((member) => (
+                        <div key={member.friend.id}>
+                          {member.friend.displayName} {member.lane}
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className="rounded-[12px] bg-[var(--pn-pink-soft)] px-[10px] py-[10px]">
                     <div className="text-[11px] font-[800] text-[var(--pn-pink)]">Team B</div>
                     <div className="mt-[8px] space-y-[4px] text-[11px] font-[600] text-[var(--pn-text-primary)]">
-                      <div>Minjae TOP</div>
-                      <div>Jiwon JG</div>
-                      <div>Sungjin MID</div>
-                      <div>Yonghan ADC</div>
-                      <div>Junho SUP</div>
+                      {teamBMembers.map((member) => (
+                        <div key={member.friend.id}>
+                          {member.friend.displayName} {member.lane}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
-                <div className="mt-[10px] text-[10px] font-[600] text-[var(--pn-text-muted)]">5 matches · 5 not decided</div>
               </MatchCard>
             </div>
 
@@ -78,57 +415,181 @@ export default function SessionDetailPage() {
               <SectionTitle
                 title="Matches"
                 right={
-                  <Button variant="secondary" className="h-[28px] rounded-[999px] px-[12px] text-[11px]">
+                  <Button
+                    variant="secondary"
+                    className="h-[28px] rounded-[999px] px-[12px] text-[11px]"
+                    disabled={busy || session.effectiveLocked}
+                    onClick={onCreateMatch}
+                  >
                     + New Match
                   </Button>
                 }
               />
-              <MatchCard>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-[12px] font-[800] text-[var(--pn-text-primary)]">Match #1</div>
-                    <div className="mt-[6px] flex items-center gap-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
-                      <span className="text-[var(--pn-primary)]">Team A (Blue)</span>
-                      <span>WIN</span>
+              {session.matches.map((match) => (
+                <MatchCard key={match.id}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-[12px] font-[800] text-[var(--pn-text-primary)]">
+                        Match #{match.matchNo}
+                      </div>
+                      <div className="mt-[4px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
+                        {match.status}
+                      </div>
                     </div>
-                    <div className="mt-[2px] flex items-center gap-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
-                      <span className="text-[var(--pn-pink)]">Team B (Pink)</span>
-                      <span>LOSE</span>
-                    </div>
+                    {isAdmin ? (
+                      <Button
+                        variant="ghost"
+                        className="h-[26px] rounded-[8px] px-[8px] text-[10px]"
+                        onClick={() => onDeleteMatch(match.id)}
+                      >
+                        Delete
+                      </Button>
+                    ) : null}
                   </div>
-                  <div className="text-[10px] font-[800] text-[var(--pn-primary)]">Completed</div>
-                </div>
-                <div className="mt-[10px] flex items-center justify-between text-[10px] font-[600] text-[var(--pn-text-muted)]">
-                  <div className="rounded-[10px] bg-[var(--pn-bg-card)] px-[10px] py-[6px]">End screen</div>
-                  <div className="text-[10px] font-[700] text-[var(--pn-primary)]">OCR Done</div>
-                </div>
-                <div className="mt-[8px] text-right text-[10px] font-[600] text-[var(--pn-text-muted)]">View detail &gt;</div>
-              </MatchCard>
+
+                  <div className="mt-[8px] flex gap-[8px]">
+                    <Button
+                      variant="secondary"
+                      className="h-[28px] rounded-[8px] px-[8px] text-[10px]"
+                      disabled={busy}
+                      onClick={() => onConfirmResult(match.id, "BLUE")}
+                    >
+                      Team A Win
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="h-[28px] rounded-[8px] px-[8px] text-[10px]"
+                      disabled={busy}
+                      onClick={() => onConfirmResult(match.id, "RED")}
+                    >
+                      Team B Win
+                    </Button>
+                  </div>
+
+                  <div className="mt-[10px] flex flex-col gap-[8px]">
+                    {match.teamMembers.map((member) => {
+                      const key = `${match.id}:${member.friend.id}`;
+                      return (
+                        <div key={key} className="flex items-center gap-[8px]">
+                          <div className="w-[80px] text-[11px] font-[700] text-[var(--pn-text-primary)]">
+                            {member.friend.displayName}
+                          </div>
+                          <select
+                            className="h-[28px] rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[700] text-[var(--pn-text-secondary)] outline-none"
+                            value={member.lane}
+                            disabled={busy}
+                            onChange={(event) =>
+                              onSetLane(match.id, member.friend.id, event.target.value)
+                            }
+                          >
+                            {["TOP", "JG", "MID", "ADC", "SUP", "UNKNOWN"].map((lane) => (
+                              <option key={lane} value={lane}>
+                                {lane}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="h-[28px] flex-1 rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[600] text-[var(--pn-text-primary)] outline-none"
+                            value={championDrafts[key] ?? member.champion ?? ""}
+                            placeholder="Champion"
+                            onChange={(event) =>
+                              setChampionDrafts((prev) => ({
+                                ...prev,
+                                [key]: event.target.value,
+                              }))
+                            }
+                            onBlur={() => onSaveChampion(match.id, member.friend.id)}
+                            disabled={busy}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </MatchCard>
+              ))}
             </div>
 
             <div className="flex flex-col gap-[10px]">
               <SectionTitle
                 title="Photos"
                 right={
-                  <Button variant="secondary" className="h-[28px] rounded-[999px] px-[12px] text-[11px]">⬆ Upload</Button>
+                  <Button
+                    variant="secondary"
+                    className="h-[28px] rounded-[8px] px-[10px] text-[10px]"
+                    disabled={pendingFiles.length === 0 || busy}
+                    onClick={onUploadFiles}
+                  >
+                    {createPresignedState.loading || completeUploadsState.loading
+                      ? "Uploading..."
+                      : "Upload"}
+                  </Button>
                 }
               />
-              <div className="flex gap-[10px]">
-                <div className="flex h-[70px] w-[70px] items-center justify-center rounded-[12px] bg-black text-[10px] font-[700] text-white/60">☐</div>
-                <div className="flex h-[70px] w-[70px] items-center justify-center rounded-[12px] bg-black text-[10px] font-[700] text-white/60">☐</div>
+              <div className="rounded-[10px] border border-[var(--pn-border)] bg-white px-[10px] py-[10px]">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(event) =>
+                    setPendingFiles(Array.from(event.currentTarget.files ?? []))
+                  }
+                  className="w-full text-[10px] font-[600] text-[var(--pn-text-secondary)]"
+                />
+                {pendingFiles.length > 0 ? (
+                  <div className="mt-[6px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
+                    {pendingFiles.length}개 파일 선택됨
+                  </div>
+                ) : null}
+                {uploadMessage ? (
+                  <div className="mt-[6px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
+                    {uploadMessage}
+                  </div>
+                ) : null}
               </div>
-              <div className="text-[10px] font-[600] text-[var(--pn-text-muted)]">Group shots, highlights, etc.</div>
+              <div className="grid grid-cols-4 gap-[8px]">
+                {session.attachments.map((attachment) => (
+                  <a
+                    key={attachment.id}
+                    href={attachment.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex h-[66px] items-center justify-center rounded-[10px] bg-[var(--pn-bg-card)] text-[10px] font-[700] text-[var(--pn-text-secondary)]"
+                  >
+                    View
+                  </a>
+                ))}
+              </div>
             </div>
 
             <div className="flex flex-col gap-[10px]">
               <SectionTitle title="Comments" />
-              <div className="text-[11px] font-[700] text-[var(--pn-text-primary)]">
-                Junho <span className="ml-[6px] text-[10px] font-[600] text-[var(--pn-text-muted)]">2 min ago</span>
-              </div>
-              <div className="text-[11px] font-[500] text-[var(--pn-text-secondary)]">GG! That last teamfight was insane</div>
-              <div className="flex items-center gap-[10px] rounded-[12px] border border-[var(--pn-border)] bg-white px-[12px] py-[10px] text-[11px] text-[var(--pn-text-muted)]">
-                Write a comment...
-                <div className="ml-auto text-[var(--pn-primary)]">↗</div>
+              {session.comments.map((comment) => (
+                <div key={comment.id}>
+                  <div className="text-[11px] font-[700] text-[var(--pn-text-primary)]">
+                    {comment.displayName || "Anonymous"}
+                    <span className="ml-[6px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
+                      {new Date(comment.createdAt).toLocaleString("ko-KR")}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-[500] text-[var(--pn-text-secondary)]">
+                    {comment.body}
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-[8px] rounded-[12px] border border-[var(--pn-border)] bg-white px-[8px] py-[8px]">
+                <input
+                  value={commentBody}
+                  onChange={(event) => setCommentBody(event.target.value)}
+                  placeholder="Write a comment..."
+                  className="h-[30px] flex-1 bg-transparent px-[6px] text-[12px] text-[var(--pn-text-primary)] outline-none"
+                />
+                <Button
+                  className="h-[30px] rounded-[8px] px-[10px] text-[11px]"
+                  disabled={!commentBody.trim() || busy}
+                  onClick={onCreateComment}
+                >
+                  Send
+                </Button>
               </div>
             </div>
           </div>

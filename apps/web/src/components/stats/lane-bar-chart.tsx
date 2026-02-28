@@ -4,7 +4,6 @@ export function LaneBarChart({
   readonly data: ReadonlyArray<{
     readonly label: string;
     readonly pct: number;
-    readonly barWidthClass: string;
   }>;
 }) {
   return (
@@ -16,7 +15,8 @@ export function LaneBarChart({
           </div>
           <div className="h-[10px] flex-1 overflow-hidden rounded-[999px] bg-[var(--pn-bg-card)]">
             <div
-              className={`h-full rounded-[999px] bg-[var(--pn-primary)] ${row.barWidthClass}`}
+              className="h-full rounded-[999px] bg-[var(--pn-primary)]"
+              style={{ width: `${Math.max(row.pct, 3)}%` }}
             />
           </div>
           <div className="w-[36px] text-right text-[10px] font-[800] text-[var(--pn-text-muted)]">

@@ -1,10 +1,18 @@
 import Link from "next/link";
-import type { FriendStatRow } from "@/lib/mock-data";
+
+export type StatsTableRow = {
+  readonly rank: number;
+  readonly friendId: string;
+  readonly name: string;
+  readonly wr: string;
+  readonly wl: string;
+  readonly lane: string;
+};
 
 export function StatsTable({
   rows,
 }: {
-  readonly rows: readonly FriendStatRow[];
+  readonly rows: readonly StatsTableRow[];
 }) {
   return (
     <div className="flex flex-col">

@@ -1,11 +1,11 @@
 import { Badge } from "@/components/ui/badge";
-import type { SessionStatus } from "@/lib/mock-data";
 
 export function SessionStatusBadge({
   status,
 }: {
-  readonly status: SessionStatus;
+  readonly status: "SCHEDULED" | "CONFIRMED" | "DONE";
 }) {
-  const tone = status === "Confirmed" ? "blueSoft" : "neutral";
-  return <Badge tone={tone}>{status}</Badge>;
+  const tone = status === "CONFIRMED" ? "blueSoft" : "neutral";
+  const label = status[0] + status.slice(1).toLowerCase();
+  return <Badge tone={tone}>{label}</Badge>;
 }

@@ -1,8 +1,40 @@
+"use client";
+
+import { useQuery } from "@apollo/client";
+import { useParams } from "next/navigation";
 import { PhoneFrame } from "@/components/layout/phone-frame";
 import { StatusBar } from "@/components/layout/status-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import { LaneBarChart } from "@/components/stats/lane-bar-chart";
 import { ChampionTable } from "@/components/stats/champion-table";
+import { TokenRequiredState } from "@/components/auth/token-required-state";
+import { STATS_DETAIL_QUERY } from "@/lib/graphql/operations";
+import { getGraphqlErrorMessage } from "@/lib/error-messages";
+import { getDefaultSessionId, getToken } from "@/lib/token";
+
+type StatsDetailQueryData = {
+  readonly statsDetail: {
+    readonly friend: {
+      readonly id: string;
+      readonly displayName: string;
+      readonly riotGameName: string | null;
+      readonly riotTagLine: string | null;
+    };
+    readonly winRate: number | null;
+    readonly totalMatches: number;
+    readonly topLane: string | null;
+    readonly laneDistribution: Array<{
+      readonly lane: string;
+      readonly playCount: number;
+    }>;
+    readonly topChampions: Array<{
+      readonly champion: string;
+      readonly wins: number;
+      readonly games: number;
+      readonly winRate: number;
+    }>;
+  };
+};
 
 function StatCard({
   label,
@@ -23,51 +55,94 @@ function StatCard({
 }
 
 export default function StatsFriendDetailPage() {
+  const params = useParams<{ friendId: string }>();
+  const activeSessionId = getDefaultSessionId();
+  const activeToken = activeSessionId ? getToken(activeSessionId) : null;
+  const hasAuth = Boolean(activeSessionId && activeToken);
+
+  const { data, loading, error } = useQuery<StatsDetailQueryData>(STATS_DETAIL_QUERY, {
+    variables: {
+      input: {
+        friendId: decodeURIComponent(params.friendId),
+      },
+    },
+    skip: !hasAuth,
+  });
+
+  const detail = data?.statsDetail;
+  const laneRows =
+    detail?.laneDistribution.map((row) => ({
+      label: row.lane,
+      pct:
+        detail.totalMatches > 0
+          ? Math.round((row.playCount / detail.totalMatches) * 100)
+          : 0,
+    })) ?? [];
+  const championRows =
+    detail?.topChampions.map((row) => ({
+      name: row.champion,
+      wins: row.wins,
+      games: row.games,
+      wr: `${Math.round(row.winRate * 100)}%`,
+    })) ?? [];
+
   return (
     <PhoneFrame>
       <div className="flex min-h-screen flex-col">
         <StatusBar />
         <PageHeader title="Statistics" backHref="/stats" />
 
-        <div className="px-[16px] pt-[6px]">
-          <div className="flex h-[40px] items-center justify-between rounded-[12px] bg-[var(--pn-bg-card)] px-[12px]">
-            <div className="text-[12px] font-[800] text-[var(--pn-text-primary)]">Junho</div>
-            <div className="text-[12px] font-[900] text-[var(--pn-text-muted)]">▾</div>
-          </div>
-          <div className="mt-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
-            Junho#KR1 · 14 matches played
-          </div>
-        </div>
-
         <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px]">
-          <div className="flex gap-[12px]">
-            <StatCard label="Win Rate" value="64%" sub="9W 5L" />
-            <StatCard label="Matches" value="14" sub="confirmed" />
-            <StatCard label="Top Lane" value="MID" sub="8 times" />
-          </div>
+          {!hasAuth ? (
+            <TokenRequiredState />
+          ) : error ? (
+            <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
+              {getGraphqlErrorMessage(error.graphQLErrors[0]?.extensions?.code as string | undefined)}
+            </div>
+          ) : loading || !detail ? (
+            <div className="py-[20px] text-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
+              불러오는 중...
+            </div>
+          ) : (
+            <>
+              <div className="text-[14px] font-[900] text-[var(--pn-text-primary)]">
+                {detail.friend.displayName}
+              </div>
+              <div className="mt-[6px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
+                {detail.friend.riotGameName && detail.friend.riotTagLine
+                  ? `${detail.friend.riotGameName}#${detail.friend.riotTagLine}`
+                  : "Riot ID not linked"}{" "}
+                · {detail.totalMatches} matches played
+              </div>
 
-          <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">Lane Distribution</div>
-          <div className="mt-[10px]">
-            <LaneBarChart
-              data={[
-                { label: "MID", pct: 57, barWidthClass: "w-[57%]" },
-                { label: "ADC", pct: 21, barWidthClass: "w-[21%]" },
-                { label: "SUP", pct: 14, barWidthClass: "w-[14%]" },
-                { label: "TOP", pct: 7, barWidthClass: "w-[7%]" },
-              ]}
-            />
-          </div>
+              <div className="mt-[12px] flex gap-[12px]">
+                <StatCard
+                  label="Win Rate"
+                  value={detail.winRate === null ? "–" : `${Math.round(detail.winRate * 100)}%`}
+                  sub={`${detail.totalMatches} matches`}
+                />
+                <StatCard
+                  label="Top Lane"
+                  value={detail.topLane ?? "–"}
+                  sub="most played"
+                />
+              </div>
 
-          <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">Most Winning Champions</div>
-          <div className="mt-[10px]">
-            <ChampionTable
-              rows={[
-                { name: "Ahri", wins: 5, games: 6, wr: "83%" },
-                { name: "Syndra", wins: 3, games: 4, wr: "75%" },
-                { name: "Orianna", wins: 1, games: 2, wr: "50%" },
-              ]}
-            />
-          </div>
+              <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">
+                Lane Distribution
+              </div>
+              <div className="mt-[10px]">
+                <LaneBarChart data={laneRows} />
+              </div>
+
+              <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">
+                Most Winning Champions
+              </div>
+              <div className="mt-[10px]">
+                <ChampionTable rows={championRows} />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </PhoneFrame>

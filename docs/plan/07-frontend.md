@@ -16,6 +16,26 @@
 | 카카오 공유 | Kakao JS SDK |
 | 상태 관리 | Apollo Cache (추가 상태 라이브러리 불필요) |
 
+## 1-A. Phase 07 구현 결정 (확정값)
+
+- 인증 정책은 API 현재 상태와 동일하게 유지:
+  - `sessionPreview`만 공개
+  - `/sessions`, `/stats`, `/friends`, `/s/{id}/setup`, `/s/{id}/detail`는 토큰 필요
+- 세션 ID 정책:
+  - URL 경로: Global ID (`/s/{sessionGlobalId}`)
+  - 인증 헤더: Local ID (`x-session-id`)
+  - 클라이언트에서 Global↔Local 변환
+- 토큰 저장:
+  - 기본 토큰: `playnote:session:{localSessionId}:token`
+  - 공유용 토큰(선택): `playnote:session:{localSessionId}:share-token`
+  - 활성 세션: `playnote:active-session-id`
+- role probe 추가:
+  - Query: `authContext`
+  - 응답: `{ sessionId, role }`
+  - `role`이 `ADMIN`일 때만 Friend CRUD / Match 삭제 UI 노출
+- 무토큰 접근 UX:
+  - 링크 유도 화면 노출("공유 링크로 먼저 입장")
+
 ---
 
 ## 2. 라우팅 구조

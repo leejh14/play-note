@@ -1,10 +1,11 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "PlayNote",
-  description: "PlayNote UI mock (from pencil-new.pen)",
+  description: "PlayNote mobile web app",
 };
 
 export default function RootLayout({
@@ -20,7 +21,9 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable.css"
         />
       </head>
-      <body className="h-full antialiased">{children}</body>
+      <body className="h-full antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

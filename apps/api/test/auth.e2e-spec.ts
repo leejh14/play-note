@@ -20,6 +20,8 @@ import { RequireAdmin } from '@auth/decorators/require-admin.decorator';
 import { CurrentAuth } from '@auth/decorators/current-auth.decorator';
 import { AuthContext } from '@auth/types/auth-context.type';
 import { AUTH_ERROR_CODES } from '@auth/constants/error-codes';
+import { AuthQueryResolver } from '@auth/presentation/resolvers/auth.query.resolver';
+import { AuthRole } from '@auth/presentation/graphql/enums/auth-role.enum.gql';
 import { GraphQLExceptionFilter } from '@shared/presentation/filters/graphql-exception.filter';
 import { UnauthorizedException } from '@shared/exceptions/unauthorized.exception';
 
@@ -67,6 +69,7 @@ describe('Auth guard flow (e2e)', () => {
       ],
       providers: [
         AuthProbeResolver,
+        AuthQueryResolver,
         {
           provide: SessionTokenService,
           useValue: sessionTokenService,
@@ -196,6 +199,38 @@ describe('Auth guard flow (e2e)', () => {
     expect((result.data as { adminPing: string }).adminPing).toBe(
       'admin:session-1',
     );
+  });
+
+  it('returns authContext for editor role', async () => {
+    const result = await executeGraphql({
+      schema,
+      source: 'query { authContext { role sessionId } }',
+      headers: {
+        'x-session-id': 'session-1',
+        'x-session-token': 'editor-token',
+      },
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(
+      (result.data as { authContext: { role: AuthRole } }).authContext.role,
+    ).toBe(AuthRole.EDITOR);
+  });
+
+  it('returns authContext for admin role', async () => {
+    const result = await executeGraphql({
+      schema,
+      source: 'query { authContext { role sessionId } }',
+      headers: {
+        'x-session-id': 'session-1',
+        'x-session-token': 'admin-token',
+      },
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(
+      (result.data as { authContext: { role: AuthRole } }).authContext.role,
+    ).toBe(AuthRole.ADMIN);
   });
 });
 
