@@ -1,0 +1,23 @@
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: '.',
+  testEnvironment: 'node',
+  testRegex: '.*\\.spec\\.ts$',
+  testPathIgnorePatterns: ['.*\\.e2e-spec\\.ts$'],
+  transform: {
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        tsconfig: '<rootDir>/tsconfig.json',
+      },
+    ],
+  },
+  moduleNameMapper: {
+    '^@domains/(.*)$': '<rootDir>/src/domains/$1',
+    '^@shared/(.*)$': '<rootDir>/src/shared/$1',
+    '^@config/(.*)$': '<rootDir>/src/config/$1',
+    '^@auth/(.*)$': '<rootDir>/src/auth/$1',
+    '^@libs/relay$': '<rootDir>/libs/relay/src',
+    '^@app$': '<rootDir>/src/app.module',
+  },
+};

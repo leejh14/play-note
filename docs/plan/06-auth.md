@@ -1,28 +1,72 @@
-# 인증/인가 시스템 계획
+# 인증/인가 시스템 계획 (Phase 06 확정안)
 
-> PlayNote는 로그인이 없는 토큰 기반 시스템이다.
-> educore의 Better Auth + RBAC + Tenant 체계 대신, 세션별 토큰 2개(editor/admin)로 단순화한다.
-
----
-
-## 1. educore 대비 변경점
-
-| 항목 | educore | PlayNote |
-|------|---------|----------|
-| 인증 | Better Auth (세션 기반 로그인) | 토큰 기반 (세션별 editor/admin) |
-| 인가 | RBAC + DB 퍼미션 | 단순 role: editor / admin |
-| Guard | GqlAuthGuard → TenantGuard → PermissionGuard | `SessionTokenGuard` 단일 |
-| 헤더 | `Authorization`, `X-Tenant-Id` | `x-session-id`, `x-session-token` |
-| Context | AuthContext (userId, tenant, permissions) | AuthContext (sessionId, role) |
-| 멀티테넌시 | Row-Level, MikroORM Filter | 없음 |
-| 데코레이터 | `@AllowAnonymous()`, `@RequirePermission()` | `@Public()`, `@RequireAdmin()` |
+> PlayNote는 로그인 없는 토큰 기반 시스템이다.
+> Phase 06에서는 Phase 05 최소 인증을 운영형 구조로 고도화한다.
 
 ---
 
-## 2. AuthContext 설계
+## 1. 목표/범위
+
+- 범위: `apps/api` 코드 + 문서 반영 (`docs/plan`, `docs/시스템디자인.md`)
+- 비범위: Web 토큰 저장/주입 로직 변경(후속 단계)
+- 유지 정책:
+  - 인증 헤더: `x-session-id`, `x-session-token`
+  - Guard 구조: `SessionTokenGuard` 단일
+  - 캐시 미도입: 매 요청 DB 조회 유지
+
+---
+
+## 2. 핵심 설계 결정
+
+### 2.1 Auth Reader 포트 분리
+
+Guard/Service가 Session Aggregate 전체를 조회하지 않도록 전용 포트를 둔다.
 
 ```typescript
-// auth/types/auth-context.type.ts
+// auth/services/session-token-reader.interface.ts
+export interface SessionTokenRecord {
+  readonly sessionId: string;
+  readonly editorToken: string;
+  readonly adminToken: string;
+}
+
+export interface ISessionTokenReader {
+  findBySessionId(sessionId: string): Promise<SessionTokenRecord | null>;
+}
+```
+
+DI 토큰:
+
+```typescript
+// auth/constants/tokens.ts
+export const SESSION_TOKEN_READER = Symbol('ISessionTokenReader');
+```
+
+### 2.2 에러 코드 분리 정책
+
+```typescript
+// auth/constants/error-codes.ts
+export const AUTH_ERROR_CODES = {
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+  FORBIDDEN: 'FORBIDDEN',
+} as const;
+```
+
+`errors[].extensions.code` 매핑:
+- 세션 없음: `SESSION_NOT_FOUND`
+- 토큰 불일치: `INVALID_TOKEN`
+- admin 권한 부족: `FORBIDDEN`
+- 헤더 누락/비정상 컨텍스트: `UNAUTHORIZED`
+
+---
+
+## 3. 구현 구조
+
+## 3.1 AuthContext
+
+```typescript
 type SessionRole = 'editor' | 'admin';
 
 interface AuthContext {
@@ -31,191 +75,84 @@ interface AuthContext {
 }
 ```
 
-### 헤더 → AuthContext 변환 플로우
+## 3.2 Guard 처리 흐름
 
-```
-1. Request 수신
-2. SessionTokenGuard 실행:
-   a. @Public() 메타데이터 확인 → 있으면 Guard 스킵
-   b. x-session-id 헤더 추출
-   c. x-session-token 헤더 추출
-   d. SessionRepository에서 session 조회 (findById)
-   e. session.validateToken(token) → role 반환
-   f. AuthContext 생성: { sessionId, role }
-   g. request 객체에 AuthContext 주입
-3. Resolver에서 @CurrentAuth()로 AuthContext 접근
-```
+1. `@Public()` 여부 확인 (있으면 즉시 통과)
+2. 헤더 읽기(`x-session-id`, `x-session-token`)
+3. 공백/빈 문자열 정규화 후 비어있으면 `UNAUTHORIZED`
+4. `SessionTokenService.validateToken` 호출
+5. request.auth 주입
+6. `@RequireAdmin()`인데 role이 editor면 `FORBIDDEN`
 
----
+## 3.3 Service 처리 흐름
 
-## 3. Guard 구현
+1. `ISessionTokenReader.findBySessionId`
+2. 결과 없음: `SESSION_NOT_FOUND`
+3. `adminToken`/`editorToken` 비교로 role 결정
+4. 불일치: `INVALID_TOKEN`
 
-### SessionTokenGuard
+## 3.4 Session Infrastructure 구현
 
-```
-auth/guards/session-token.guard.ts
-
-역할:
-├── x-session-id + x-session-token 헤더에서 토큰 추출
-├── Session 조회 → 토큰 검증 → role 결정
-├── @Public() 메타데이터가 있으면 Guard 스킵
-├── 토큰 없거나 잘못되면 UnauthorizedException
-│
-글로벌 Guard로 등록 (APP_GUARD):
-  app.module.ts에서 { provide: APP_GUARD, useClass: SessionTokenGuard }
-```
-
-### Admin 검증
-
-```
-@RequireAdmin() 데코레이터 사용 시:
-  → Guard에서 role이 'admin'이 아니면 ForbiddenException
-
-또는 UseCase 레벨에서 검사:
-  if (auth.role !== 'admin') throw new ForbiddenException(...)
-```
+- `mikro-session-token.reader.ts`에서 `session` 최소 필드만 조회:
+  - `id`
+  - `editorToken`
+  - `adminToken`
+- Aggregate 재구성 없이 즉시 `SessionTokenRecord` 반환
 
 ---
 
-## 4. 데코레이터
+## 4. 폴더/파일
 
-### @CurrentAuth()
+신규:
+- `apps/api/src/auth/constants/error-codes.ts`
+- `apps/api/src/auth/constants/tokens.ts`
+- `apps/api/src/auth/services/session-token-reader.interface.ts`
+- `apps/api/src/domains/session/infrastructure/persistence/mikro-session-token.reader.ts`
 
-```typescript
-// auth/decorators/current-auth.decorator.ts
-export const CurrentAuth = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): AuthContext => {
-    const gqlCtx = GqlExecutionContext.create(ctx);
-    return gqlCtx.getContext().req.auth;
-  },
-);
-```
-
-### @Public()
-
-```typescript
-// auth/decorators/public.decorator.ts
-export const IS_PUBLIC_KEY = 'isPublic';
-export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
-```
-
-### @RequireAdmin()
-
-```typescript
-// auth/decorators/require-admin.decorator.ts
-export const IS_ADMIN_KEY = 'requireAdmin';
-export const RequireAdmin = () => SetMetadata(IS_ADMIN_KEY, true);
-```
+주요 수정:
+- `apps/api/src/auth/services/session-token.service.ts`
+- `apps/api/src/auth/guards/session-token.guard.ts`
+- `apps/api/src/domains/session/infrastructure/session.infrastructure.module.ts`
 
 ---
 
-## 5. 세션 토큰 검증 최적화
+## 5. 테스트 전략
 
-### 문제: 매 요청마다 DB 조회
+## 5.1 Unit
 
-모든 GraphQL 요청에서 `x-session-id`로 Session을 조회해야 토큰 검증이 가능하다.
+대상:
+- `SessionTokenService`
+- `SessionTokenGuard`
 
-### 해결 방안 (MVP)
+시나리오:
+- 세션 없음 → `SESSION_NOT_FOUND`
+- 토큰 불일치 → `INVALID_TOKEN`
+- editor/admin role 판별
+- `@Public` 우회
+- `@RequireAdmin` + editor → `FORBIDDEN`
+- 빈/공백 헤더 → `UNAUTHORIZED`
 
-**A안: 매번 DB 조회 (선택)**
-- Session 수가 적으므로 성능 이슈 없음
-- Index: `session.editorToken` (UNIQUE), `session.adminToken` (UNIQUE)
-- findByToken 대신 findById + 메모리 토큰 비교
+## 5.2 E2E (GraphQL)
 
-**B안: 인메모리 캐시 (필요 시)**
-- Map<sessionId, { editorToken, adminToken }> 캐시
-- Session 생성/삭제 시 캐시 갱신
-- MVP에서는 불필요
+대상:
+- `test/auth.e2e-spec.ts`
 
-### Guard에서의 세션 조회 방법
-
-```typescript
-// Guard에서 Session을 조회하되, 최소 필드만 가져옴
-// findById 대신 전용 메서드 사용
-interface ISessionTokenService {
-  validateToken(sessionId: string, token: string): Promise<SessionRole>;
-}
-```
-
-```
-auth/services/session-token.service.ts
-├── validateToken(sessionId, token): Promise<SessionRole>
-│   → Session 조회 (id, editorToken, adminToken만)
-│   → token === editorToken → 'editor'
-│   → token === adminToken → 'admin'
-│   → 그 외 → throw UnauthorizedException
-```
+시나리오:
+- 보호 쿼리 무헤더 → `UNAUTHORIZED`
+- 잘못된 토큰 → `INVALID_TOKEN`
+- 없는 세션 → `SESSION_NOT_FOUND`
+- `@Public` 쿼리 무토큰 200
+- `@RequireAdmin` mutation: editor 403, admin 200
 
 ---
 
-## 6. 권한 체크 포인트
+## 6. 검증 체크리스트
 
-### Resolver 레벨 (데코레이터)
-
-```typescript
-@Mutation(() => DeleteSessionPayload)
-@RequireAdmin()
-async deleteSession(@Args('input') input: DeleteSessionInput, @CurrentAuth() auth: AuthContext) {
-  // Guard에서 admin 검증 완료
-  return this.deleteSessionUseCase.execute({ sessionId: fromGlobalId(input.sessionId).id });
-}
-```
-
-### UseCase 레벨 (비즈니스 규칙)
-
-```typescript
-// effectiveLocked 같은 비즈니스 규칙은 UseCase에서 검증
-execute(input) {
-  const session = await this.sessionRepository.findById(input.sessionId);
-  const count = await this.attachmentContextAcl.countBySessionId(input.sessionId);
-  session.checkStructureChangeAllowed(count); // → 잠김이면 예외
-  // ...
-}
-```
-
----
-
-## 7. 에러 코드
-
-```typescript
-// auth/constants/error-codes.ts
-export const AUTH_ERROR_CODES = {
-  UNAUTHORIZED: 'UNAUTHORIZED',               // 토큰 없음 / 잘못된 토큰
-  SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',     // sessionId에 해당하는 세션 없음
-  FORBIDDEN: 'FORBIDDEN',                     // admin 권한 필요
-  INVALID_TOKEN: 'INVALID_TOKEN',             // 토큰 불일치
-} as const;
-```
-
----
-
-## 8. 폴더 구조
-
-```
-src/auth/
-├── guards/
-│   └── session-token.guard.ts
-├── decorators/
-│   ├── current-auth.decorator.ts
-│   ├── public.decorator.ts
-│   └── require-admin.decorator.ts
-├── services/
-│   └── session-token.service.ts
-├── types/
-│   └── auth-context.type.ts
-├── constants/
-│   └── error-codes.ts
-└── auth.module.ts
-```
-
----
-
-## 9. 검증 체크리스트
-
-- [ ] 토큰 없이 일반 쿼리 → 401 Unauthorized
-- [ ] 유효 editorToken → AuthContext.role = 'editor'
-- [ ] 유효 adminToken → AuthContext.role = 'admin'
-- [ ] 잘못된 토큰 → 401
-- [ ] `@Public()` 쿼리 (sessionPreview) → 토큰 없이 200
-- [ ] `@RequireAdmin()` 뮤테이션 + editorToken → 403 Forbidden
-- [ ] `@RequireAdmin()` 뮤테이션 + adminToken → 성공
+- [x] 토큰 없이 보호 쿼리 호출 시 `UNAUTHORIZED`
+- [x] 유효 `editorToken`으로 role=`editor`
+- [x] 유효 `adminToken`으로 role=`admin`
+- [x] 잘못된 토큰 시 `INVALID_TOKEN`
+- [x] 없는 세션 시 `SESSION_NOT_FOUND`
+- [x] `@Public`은 무토큰 접근 허용
+- [x] `@RequireAdmin`은 editor 차단 / admin 허용
+- [x] Auth 서비스는 최소 필드 조회 포트 사용 (Aggregate 전체 조회 제거)

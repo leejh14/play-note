@@ -1,31 +1,48 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ISessionRepository } from '@domains/session/domain/repositories/session.repository.interface';
-import { SESSION_REPOSITORY } from '@domains/session/domain/constants';
 import { UnauthorizedException } from '@shared/exceptions/unauthorized.exception';
 import { AuthContext } from '@auth/types/auth-context.type';
+import { AUTH_ERROR_CODES } from '@auth/constants/error-codes';
+import { SESSION_TOKEN_READER } from '@auth/constants/tokens';
+import { ISessionTokenReader } from './session-token-reader.interface';
 
 @Injectable()
 export class SessionTokenService {
   constructor(
-    @Inject(SESSION_REPOSITORY)
-    private readonly sessionRepository: ISessionRepository,
+    @Inject(SESSION_TOKEN_READER)
+    private readonly sessionTokenReader: ISessionTokenReader,
   ) {}
 
   async validateToken(input: {
     sessionId: string;
     token: string;
   }): Promise<AuthContext> {
-    const session = await this.sessionRepository.findById(input.sessionId);
-    if (!session) {
+    const sessionToken = await this.sessionTokenReader.findBySessionId(
+      input.sessionId,
+    );
+
+    if (!sessionToken) {
       throw new UnauthorizedException({
-        message: 'Session not found',
-        errorCode: 'SESSION_NOT_FOUND',
+        message: 'Unauthorized',
+        errorCode: AUTH_ERROR_CODES.SESSION_NOT_FOUND,
       });
     }
 
-    const role = session.validateToken(input.token);
+    const role =
+      input.token === sessionToken.adminToken
+        ? 'admin'
+        : input.token === sessionToken.editorToken
+          ? 'editor'
+          : null;
+
+    if (!role) {
+      throw new UnauthorizedException({
+        message: 'Unauthorized',
+        errorCode: AUTH_ERROR_CODES.INVALID_TOKEN,
+      });
+    }
+
     return {
-      sessionId: session.id,
+      sessionId: sessionToken.sessionId,
       role,
     };
   }

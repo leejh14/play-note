@@ -7,6 +7,7 @@ import { GqlExecutionContext } from '@nestjs/graphql';
 import { Reflector } from '@nestjs/core';
 import { ForbiddenException } from '@shared/exceptions/forbidden.exception';
 import { UnauthorizedException } from '@shared/exceptions/unauthorized.exception';
+import { AUTH_ERROR_CODES } from '@auth/constants/error-codes';
 import { IS_PUBLIC_KEY } from '@auth/decorators/public.decorator';
 import { REQUIRE_ADMIN_KEY } from '@auth/decorators/require-admin.decorator';
 import { RequestWithAuth } from '@auth/types/request-with-auth.type';
@@ -33,6 +34,7 @@ export class SessionTokenGuard implements CanActivate {
     if (!request) {
       throw new UnauthorizedException({
         message: 'Unauthorized',
+        errorCode: AUTH_ERROR_CODES.UNAUTHORIZED,
       });
     }
 
@@ -41,7 +43,8 @@ export class SessionTokenGuard implements CanActivate {
 
     if (!sessionId || !token) {
       throw new UnauthorizedException({
-        message: 'Missing session headers',
+        message: 'Unauthorized',
+        errorCode: AUTH_ERROR_CODES.UNAUTHORIZED,
       });
     }
 
@@ -58,6 +61,7 @@ export class SessionTokenGuard implements CanActivate {
     if (requireAdmin && auth.role !== 'admin') {
       throw new ForbiddenException({
         message: 'Admin role required',
+        errorCode: AUTH_ERROR_CODES.FORBIDDEN,
       });
     }
 
@@ -69,9 +73,13 @@ export class SessionTokenGuard implements CanActivate {
     if (!raw) {
       return null;
     }
-    if (Array.isArray(raw)) {
-      return raw[0] ?? null;
+
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (!value) {
+      return null;
     }
-    return raw;
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 }
