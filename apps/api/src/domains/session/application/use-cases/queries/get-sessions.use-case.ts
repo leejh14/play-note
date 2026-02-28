@@ -5,6 +5,7 @@ import { ISessionRepository } from '@domains/session/domain/repositories/session
 import { IMatchRepository } from '@domains/match/domain/repositories/match.repository.interface';
 import { SESSION_REPOSITORY } from '@domains/session/domain/constants';
 import { MATCH_REPOSITORY } from '@domains/match/domain/constants';
+import { ValidationException } from '@shared/exceptions/validation.exception';
 import { SessionMapper } from '../../mappers/session.mapper';
 import { GetSessionsInputDto } from '../../dto/inputs/get-sessions.input.dto';
 import { SessionOutputDto } from '../../dto/outputs/session.output.dto';
@@ -20,7 +21,14 @@ export class GetSessionsUseCase {
   async execute(
     input: GetSessionsInputDto,
   ): Promise<ConnectionDto<SessionOutputDto>> {
-    validateRelayArgs(input);
+    try {
+      validateRelayArgs(input);
+    } catch (error: unknown) {
+      throw new ValidationException({
+        message:
+          error instanceof Error ? error.message : 'Invalid relay arguments',
+      });
+    }
     const orderBy = input.orderBy?.map((o) => ({
       field: o.field,
       direction: o.direction,

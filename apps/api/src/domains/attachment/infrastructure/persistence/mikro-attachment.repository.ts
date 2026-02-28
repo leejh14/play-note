@@ -20,6 +20,11 @@ export class MikroAttachmentRepository implements IAttachmentRepository {
     return list.map((o) => this.toDomainEntity(o));
   }
 
+  async findByMatchId(matchId: string): Promise<Attachment[]> {
+    const list = await this.em.find(AttachmentOrmEntity, { matchId });
+    return list.map((o) => this.toDomainEntity(o));
+  }
+
   async countBySessionId(sessionId: string): Promise<number> {
     return this.em.count(AttachmentOrmEntity, { sessionId });
   }

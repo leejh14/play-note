@@ -7,8 +7,11 @@ import { CreatePresignedUploadsUseCase } from './use-cases/commands/create-presi
 import { CompleteUploadUseCase } from './use-cases/commands/complete-upload.use-case';
 import { CompleteUploadsUseCase } from './use-cases/commands/complete-uploads.use-case';
 import { DeleteAttachmentUseCase } from './use-cases/commands/delete-attachment.use-case';
+import { GetAttachmentUseCase } from './use-cases/queries/get-attachment.use-case';
 import { GetAttachmentsBySessionUseCase } from './use-cases/queries/get-attachments-by-session.use-case';
+import { GetAttachmentsByMatchUseCase } from './use-cases/queries/get-attachments-by-match.use-case';
 import { GetExtractionResultUseCase } from './use-cases/queries/get-extraction-result.use-case';
+import { GetExtractionResultsByMatchUseCase } from './use-cases/queries/get-extraction-results-by-match.use-case';
 
 @Module({
   imports: [
@@ -22,8 +25,11 @@ import { GetExtractionResultUseCase } from './use-cases/queries/get-extraction-r
     CompleteUploadUseCase,
     CompleteUploadsUseCase,
     DeleteAttachmentUseCase,
+    GetAttachmentUseCase,
     GetAttachmentsBySessionUseCase,
+    GetAttachmentsByMatchUseCase,
     GetExtractionResultUseCase,
+    GetExtractionResultsByMatchUseCase,
   ],
   exports: [
     CreatePresignedUploadUseCase,
@@ -31,8 +37,11 @@ import { GetExtractionResultUseCase } from './use-cases/queries/get-extraction-r
     CompleteUploadUseCase,
     CompleteUploadsUseCase,
     DeleteAttachmentUseCase,
+    GetAttachmentUseCase,
     GetAttachmentsBySessionUseCase,
+    GetAttachmentsByMatchUseCase,
     GetExtractionResultUseCase,
+    GetExtractionResultsByMatchUseCase,
   ],
 })
 export class AttachmentApplicationModule {}

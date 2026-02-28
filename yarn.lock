@@ -313,6 +313,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@as-integrations/express5@npm:^1.1.2":
+  version: 1.1.2
+  resolution: "@as-integrations/express5@npm:1.1.2"
+  peerDependencies:
+    "@apollo/server": ^4.0.0 || ^5.0.0
+    express: ^5.0.0
+  checksum: 10c0/6bf6ee9afaf236442d468881f6bf37b3833c372fa4d1bab836d67cbd2def4f67182de5352bbda3ac4579992c604a0dd788c0cf1b75d2d01a66990ee3f566abc1
+  languageName: node
+  linkType: hard
+
 "@aws-crypto/crc32@npm:5.2.0":
   version: 5.2.0
   resolution: "@aws-crypto/crc32@npm:5.2.0"
@@ -2989,6 +2999,7 @@ __metadata:
   resolution: "@playnote/api@workspace:apps/api"
   dependencies:
     "@apollo/server": "npm:^4.11.0"
+    "@as-integrations/express5": "npm:^1.1.2"
     "@aws-sdk/client-s3": "npm:^3.1000.0"
     "@aws-sdk/s3-request-presigner": "npm:^3.1000.0"
     "@mikro-orm/cli": "npm:^6.4.0"
@@ -3015,6 +3026,7 @@ __metadata:
     class-validator: "npm:^0.14.0"
     eslint: "npm:^9.0.0"
     execa: "npm:^9.6.1"
+    express: "npm:^5.2.1"
     graphile-worker: "npm:^0.16.6"
     graphql: "npm:^16.9.0"
     graphql-scalars: "npm:^1.24.0"
@@ -7095,7 +7107,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"express@npm:5.2.1":
+"express@npm:5.2.1, express@npm:^5.2.1":
   version: 5.2.1
   resolution: "express@npm:5.2.1"
   dependencies:

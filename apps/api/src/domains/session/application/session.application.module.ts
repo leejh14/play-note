@@ -19,6 +19,7 @@ import { GetSessionsUseCase } from './use-cases/queries/get-sessions.use-case';
 import { GetSessionUseCase } from './use-cases/queries/get-session.use-case';
 import { GetSessionPreviewUseCase } from './use-cases/queries/get-session-preview.use-case';
 import { GetCommentsUseCase } from './use-cases/queries/get-comments.use-case';
+import { GetCommentUseCase } from './use-cases/queries/get-comment.use-case';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { GetCommentsUseCase } from './use-cases/queries/get-comments.use-case';
     GetSessionsUseCase,
     GetSessionUseCase,
     GetSessionPreviewUseCase,
+    GetCommentUseCase,
     GetCommentsUseCase,
   ],
   exports: [
@@ -61,6 +63,7 @@ import { GetCommentsUseCase } from './use-cases/queries/get-comments.use-case';
     GetSessionsUseCase,
     GetSessionUseCase,
     GetSessionPreviewUseCase,
+    GetCommentUseCase,
     GetCommentsUseCase,
   ],
 })
