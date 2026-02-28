@@ -17,7 +17,7 @@ export class S3StorageService {
 
   constructor(private readonly config: ConfigService) {
     this.region = this.config.get<string>('AWS_REGION') ?? 'us-east-1';
-    this.bucket = this.config.getOrThrow<string>('S3_BUCKET');
+    this.bucket = this.config.get<string>('S3_BUCKET') ?? 'playnote-attachments';
     this.client = new S3Client({
       region: this.region,
       credentials: this.config.get('AWS_ACCESS_KEY_ID')

@@ -1,0 +1,648 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input AdminUnlockInput {
+  clientMutationId: String
+  sessionId: ID!
+}
+
+type AdminUnlockPayload {
+  clientMutationId: String
+  session: Session
+}
+
+input ArchiveFriendInput {
+  clientMutationId: String
+  friendId: ID!
+}
+
+type ArchiveFriendPayload {
+  clientMutationId: String
+  friend: Friend
+}
+
+type Attachment {
+  contentType: String!
+  createdAt: DateTime!
+  extractionResult: ExtractionResult
+  height: Int
+  id: ID!
+  originalFileName: String
+  scope: AttachmentScope!
+  size: Int!
+  type: AttachmentType!
+  url: String!
+  width: Int
+}
+
+"""첨부 범위"""
+enum AttachmentScope {
+  MATCH
+  SESSION
+}
+
+"""첨부 타입"""
+enum AttachmentType {
+  FUTSAL_PHOTO
+  LOL_RESULT_SCREEN
+}
+
+type Attendance {
+  friend: Friend!
+  id: ID!
+  status: AttendanceStatus!
+}
+
+"""참가 상태"""
+enum AttendanceStatus {
+  ATTENDING
+  NOT_ATTENDING
+  UNDECIDED
+}
+
+input BulkSetTeamsInput {
+  assignments: [TeamAssignmentInput!]!
+  clientMutationId: String
+  sessionId: ID!
+}
+
+type BulkSetTeamsPayload {
+  clientMutationId: String
+  session: Session
+}
+
+type ChampionStats {
+  champion: String!
+  games: Int!
+  winRate: Float!
+  wins: Int!
+}
+
+type Comment {
+  body: String!
+  createdAt: DateTime!
+  displayName: String
+  id: ID!
+}
+
+input CompleteUploadFileInput {
+  contentType: String!
+  height: Int
+  matchId: ID
+  originalFileName: String
+  scope: AttachmentScope!
+  sessionId: ID!
+  size: Int!
+  type: AttachmentType!
+  uploadId: String!
+  width: Int
+}
+
+input CompleteUploadInput {
+  clientMutationId: String
+  contentType: String!
+  height: Int
+  matchId: ID
+  originalFileName: String
+  scope: AttachmentScope!
+  sessionId: ID!
+  size: Int!
+  type: AttachmentType!
+  uploadId: String!
+  width: Int
+}
+
+type CompleteUploadPayload {
+  attachment: Attachment
+  clientMutationId: String
+}
+
+input CompleteUploadsInput {
+  clientMutationId: String
+  files: [CompleteUploadFileInput!]!
+}
+
+type CompleteUploadsPayload {
+  attachments: [Attachment!]!
+  clientMutationId: String
+}
+
+input ConfirmMatchResultInput {
+  clientMutationId: String
+  matchId: ID!
+  teamASide: Side!
+  winnerSide: Side!
+}
+
+type ConfirmMatchResultPayload {
+  clientMutationId: String
+  match: Match
+}
+
+input ConfirmSessionInput {
+  clientMutationId: String
+  sessionId: ID!
+}
+
+type ConfirmSessionPayload {
+  clientMutationId: String
+  session: Session
+}
+
+"""세션 콘텐츠 타입"""
+enum ContentType {
+  FUTSAL
+  LOL
+}
+
+input CreateCommentInput {
+  body: String!
+  clientMutationId: String
+  displayName: String
+  sessionId: ID!
+}
+
+type CreateCommentPayload {
+  clientMutationId: String
+  comment: Comment
+}
+
+input CreateFriendInput {
+  clientMutationId: String
+  displayName: String!
+  riotGameName: String
+  riotTagLine: String
+}
+
+type CreateFriendPayload {
+  clientMutationId: String
+  friend: Friend
+}
+
+input CreateMatchFromPresetInput {
+  clientMutationId: String
+  sessionId: ID!
+}
+
+type CreateMatchFromPresetPayload {
+  clientMutationId: String
+  match: Match
+}
+
+input CreatePresignedUploadInput {
+  clientMutationId: String
+  contentType: String!
+  matchId: ID
+  originalFileName: String
+  scope: AttachmentScope!
+  sessionId: ID!
+  type: AttachmentType!
+}
+
+type CreatePresignedUploadPayload {
+  clientMutationId: String
+  upload: PresignedUpload!
+}
+
+input CreatePresignedUploadsInput {
+  clientMutationId: String
+  files: [PresignedUploadFileInput!]!
+  sessionId: ID!
+}
+
+type CreatePresignedUploadsPayload {
+  clientMutationId: String
+  uploads: [PresignedUpload!]!
+}
+
+input CreateSessionInput {
+  clientMutationId: String
+  contentType: ContentType!
+  startsAt: DateTime!
+  title: String
+}
+
+type CreateSessionPayload {
+  adminToken: String!
+  clientMutationId: String
+  editorToken: String!
+  session: Session
+}
+
+"""
+A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
+"""
+scalar DateTime
+
+input DeleteAttachmentInput {
+  attachmentId: ID!
+  clientMutationId: String
+}
+
+type DeleteAttachmentPayload {
+  clientMutationId: String
+  deletedAttachmentId: ID!
+}
+
+input DeleteCommentInput {
+  clientMutationId: String
+  commentId: ID!
+}
+
+type DeleteCommentPayload {
+  clientMutationId: String
+  deletedCommentId: ID!
+}
+
+input DeleteMatchInput {
+  clientMutationId: String
+  matchId: ID!
+}
+
+type DeleteMatchPayload {
+  clientMutationId: String
+  deletedMatchId: ID!
+}
+
+input DeleteSessionInput {
+  clientMutationId: String
+  sessionId: ID!
+}
+
+type DeleteSessionPayload {
+  clientMutationId: String
+  deletedSessionId: ID!
+}
+
+type ExtractionResult {
+  createdAt: DateTime!
+  id: ID!
+  model: String
+  result: JSON
+  status: ExtractionStatus!
+}
+
+"""추출 상태"""
+enum ExtractionStatus {
+  DONE
+  FAILED
+  PENDING
+}
+
+type Friend implements Node {
+  createdAt: DateTime!
+  displayName: String!
+  id: ID!
+  isArchived: Boolean!
+  riotGameName: String
+  riotTagLine: String
+  updatedAt: DateTime!
+}
+
+type FriendStatsSummary {
+  friend: Friend!
+  losses: Int!
+  topLane: Lane
+  totalMatches: Int!
+  winRate: Float
+  wins: Int!
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
+
+"""라인"""
+enum Lane {
+  ADC
+  JG
+  MID
+  SUP
+  TOP
+  UNKNOWN
+}
+
+type LaneDistribution {
+  lane: Lane!
+  playCount: Int!
+}
+
+input MarkDoneInput {
+  clientMutationId: String
+  sessionId: ID!
+}
+
+type MarkDonePayload {
+  clientMutationId: String
+  session: Session
+}
+
+type Match implements Node {
+  attachments: [Attachment!]!
+  createdAt: DateTime!
+  extractionResults: [ExtractionResult!]!
+  id: ID!
+  isConfirmed: Boolean!
+  matchNo: Int!
+  session: Session!
+  status: MatchStatus!
+  teamASide: Side!
+  teamMembers: [MatchTeamMember!]!
+  winnerSide: Side!
+}
+
+"""매치 상태"""
+enum MatchStatus {
+  COMPLETED
+  DRAFT
+  LINEUP_LOCKED
+}
+
+type MatchTeamMember {
+  champion: String
+  friend: Friend!
+  id: ID!
+  lane: Lane!
+  team: Team!
+}
+
+type Mutation {
+  adminUnlock(input: AdminUnlockInput!): AdminUnlockPayload!
+  archiveFriend(input: ArchiveFriendInput!): ArchiveFriendPayload!
+  bulkSetTeams(input: BulkSetTeamsInput!): BulkSetTeamsPayload!
+  completeUpload(input: CompleteUploadInput!): CompleteUploadPayload!
+  completeUploads(input: CompleteUploadsInput!): CompleteUploadsPayload!
+  confirmMatchResult(input: ConfirmMatchResultInput!): ConfirmMatchResultPayload!
+  confirmSession(input: ConfirmSessionInput!): ConfirmSessionPayload!
+  createComment(input: CreateCommentInput!): CreateCommentPayload!
+  createFriend(input: CreateFriendInput!): CreateFriendPayload!
+  createMatchFromPreset(input: CreateMatchFromPresetInput!): CreateMatchFromPresetPayload!
+  createPresignedUpload(input: CreatePresignedUploadInput!): CreatePresignedUploadPayload!
+  createPresignedUploads(input: CreatePresignedUploadsInput!): CreatePresignedUploadsPayload!
+  createSession(input: CreateSessionInput!): CreateSessionPayload!
+  deleteAttachment(input: DeleteAttachmentInput!): DeleteAttachmentPayload!
+  deleteComment(input: DeleteCommentInput!): DeleteCommentPayload!
+  deleteMatch(input: DeleteMatchInput!): DeleteMatchPayload!
+  deleteSession(input: DeleteSessionInput!): DeleteSessionPayload!
+  markDone(input: MarkDoneInput!): MarkDonePayload!
+  reopenSession(input: ReopenSessionInput!): ReopenSessionPayload!
+  restoreFriend(input: RestoreFriendInput!): RestoreFriendPayload!
+  setAttendance(input: SetAttendanceInput!): SetAttendancePayload!
+  setChampion(input: SetChampionInput!): SetChampionPayload!
+  setLane(input: SetLaneInput!): SetLanePayload!
+  setTeamMember(input: SetTeamMemberInput!): SetTeamMemberPayload!
+  updateFriend(input: UpdateFriendInput!): UpdateFriendPayload!
+  updateSession(input: UpdateSessionInput!): UpdateSessionPayload!
+}
+
+"""Relay Global Object Identification 인터페이스"""
+interface Node {
+  id: ID!
+}
+
+"""정렬 방향"""
+enum OrderDirection {
+  ASC
+  DESC
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+}
+
+type PresignedUpload {
+  presignedUrl: String!
+  uploadId: String!
+}
+
+input PresignedUploadFileInput {
+  contentType: String!
+  matchId: ID
+  originalFileName: String
+  scope: AttachmentScope!
+  type: AttachmentType!
+}
+
+type Query {
+  friends(includeArchived: Boolean = false, query: String): [Friend!]!
+
+  """Relay node query"""
+  node(id: ID!): Node
+
+  """Relay nodes query"""
+  nodes(ids: [ID!]!): [Node]!
+  session(sessionId: ID!): Session!
+  sessionPreview(sessionId: ID!): SessionPreview!
+  sessions(after: String, before: String, filter: SessionFilter, first: Int, last: Int, orderBy: [SessionOrder!]): SessionConnection!
+  statsDetail(input: StatsDetailInput!): StatsDetail!
+  statsOverview(input: StatsOverviewInput): StatsOverview!
+}
+
+input ReopenSessionInput {
+  clientMutationId: String
+  sessionId: ID!
+}
+
+type ReopenSessionPayload {
+  clientMutationId: String
+  session: Session
+}
+
+input RestoreFriendInput {
+  clientMutationId: String
+  friendId: ID!
+}
+
+type RestoreFriendPayload {
+  clientMutationId: String
+  friend: Friend
+}
+
+type Session implements Node {
+  attachments: [Attachment!]!
+  attendances: [Attendance!]!
+  attendingCount: Int!
+  comments: [Comment!]!
+  contentType: ContentType!
+  createdAt: DateTime!
+  effectiveLocked: Boolean!
+  id: ID!
+  isAdminUnlocked: Boolean!
+  matchCount: Int!
+  matches: [Match!]!
+  startsAt: DateTime!
+  status: SessionStatus!
+  teamPresetMembers: [TeamPresetMember!]!
+  title: String
+  updatedAt: DateTime!
+}
+
+type SessionConnection {
+  edges: [SessionEdge!]!
+  pageInfo: PageInfo!
+}
+
+type SessionEdge {
+  cursor: String!
+  node: Session!
+}
+
+input SessionFilter {
+  contentType: ContentType
+}
+
+input SessionOrder {
+  direction: OrderDirection!
+  field: SessionOrderField!
+}
+
+"""세션 정렬 필드"""
+enum SessionOrderField {
+  CREATED_AT
+  DATE_PROXIMITY
+  STARTS_AT
+  STATUS_PRIORITY
+}
+
+type SessionPreview {
+  contentType: ContentType!
+  startsAt: DateTime!
+  title: String
+}
+
+"""세션 상태"""
+enum SessionStatus {
+  CONFIRMED
+  DONE
+  SCHEDULED
+}
+
+input SetAttendanceInput {
+  clientMutationId: String
+  friendId: ID!
+  sessionId: ID!
+  status: AttendanceStatus!
+}
+
+type SetAttendancePayload {
+  clientMutationId: String
+  session: Session
+}
+
+input SetChampionInput {
+  champion: String
+  clientMutationId: String
+  friendId: ID!
+  matchId: ID!
+}
+
+type SetChampionPayload {
+  clientMutationId: String
+  match: Match
+}
+
+input SetLaneInput {
+  clientMutationId: String
+  friendId: ID!
+  lane: Lane!
+  matchId: ID!
+}
+
+type SetLanePayload {
+  clientMutationId: String
+  match: Match
+}
+
+input SetTeamMemberInput {
+  clientMutationId: String
+  friendId: ID!
+  lane: Lane
+  sessionId: ID!
+  team: Team!
+}
+
+type SetTeamMemberPayload {
+  clientMutationId: String
+  session: Session
+}
+
+"""진영"""
+enum Side {
+  BLUE
+  RED
+  UNKNOWN
+}
+
+type StatsDetail {
+  friend: Friend!
+  laneDistribution: [LaneDistribution!]!
+  topChampions: [ChampionStats!]!
+  topLane: Lane
+  totalMatches: Int!
+  winRate: Float
+}
+
+input StatsDetailInput {
+  endDate: DateTime
+  friendId: ID!
+  startDate: DateTime
+}
+
+type StatsOverview {
+  friends: [FriendStatsSummary!]!
+}
+
+input StatsOverviewInput {
+  endDate: DateTime
+  includeArchived: Boolean = false
+  startDate: DateTime
+}
+
+"""팀 구분"""
+enum Team {
+  A
+  B
+}
+
+input TeamAssignmentInput {
+  friendId: ID!
+  lane: Lane
+  team: Team!
+}
+
+type TeamPresetMember {
+  friend: Friend!
+  id: ID!
+  lane: Lane!
+  team: Team!
+}
+
+input UpdateFriendInput {
+  clientMutationId: String
+  displayName: String
+  friendId: ID!
+  riotGameName: String
+  riotTagLine: String
+}
+
+type UpdateFriendPayload {
+  clientMutationId: String
+  friend: Friend
+}
+
+input UpdateSessionInput {
+  clientMutationId: String
+  sessionId: ID!
+  startsAt: DateTime
+  title: String
+}
+
+type UpdateSessionPayload {
+  clientMutationId: String
+  session: Session
+}

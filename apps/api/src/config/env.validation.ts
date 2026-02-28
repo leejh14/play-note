@@ -17,5 +17,5 @@ export const envValidationSchema = Joi.object({
   AWS_REGION: Joi.string().optional(),
   AWS_ACCESS_KEY_ID: Joi.string().optional(),
   AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
-  S3_BUCKET: Joi.string().optional(),
+  S3_BUCKET: Joi.string().default('playnote-attachments'),
 });
