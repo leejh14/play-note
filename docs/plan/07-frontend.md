@@ -29,6 +29,7 @@
   - 기본 토큰: `playnote:session:{localSessionId}:token`
   - 공유용 토큰(선택): `playnote:session:{localSessionId}:share-token`
   - 활성 세션: `playnote:active-session-id`
+  - 최근 사용 시각: `playnote:session:{localSessionId}:last-used-at`
 - role probe 추가:
   - Query: `authContext`
   - 응답: `{ sessionId, role }`
@@ -48,7 +49,9 @@ src/app/
 ├── sessions/
 │   ├── page.tsx                     # 세션 목록 (Tab: Sessions)
 │   └── new/
-│       └── page.tsx                 # 세션 생성
+│       ├── page.tsx                 # 세션 생성
+│       └── share-complete/
+│           └── page.tsx             # 생성 직후 공유/복사 화면
 │
 ├── s/[sessionId]/
 │   ├── page.tsx                     # 세션 진입점 (토큰 처리 + 라우팅)
@@ -72,6 +75,7 @@ src/app/
 |------|------|------|-------|
 | `/sessions` | 세션 목록 (홈) | 필요 (active session token) | O |
 | `/sessions/new` | 세션 생성 | 불필요 (`createSession` 공개) | X (뒤로가기) |
+| `/sessions/new/share-complete` | 생성 완료 공유 UX | 필요 (생성 직후 저장 token) | X (뒤로가기) |
 | `/s/{id}` | 진입점: 토큰 저장 → 상태별 리다이렉트 | URL 파라미터 `?t=` | X |
 | `/s/{id}/setup` | 셋업 (참가/팀/라인) | 필요 | X (뒤로가기) |
 | `/s/{id}/detail` | 상세 (매치/첨부/댓글) | 필요 | X (뒤로가기) |
@@ -115,6 +119,7 @@ function removeToken(sessionId: string) {
    - `playnote:session:{id}:token`, `share-token` 제거
    - `playnote:active-session-id`가 해당 세션이면 제거
    - 재진입 안내 UI 노출
+6. active session이 없으면 저장된 토큰 중 최근 사용(`last-used-at`) 세션을 기본 컨텍스트로 선택
 ```
 
 ### Apollo Client 헤더 주입
@@ -133,6 +138,11 @@ const authLink = setContext((operation, { headers }) => {
       ...(token && { 'x-session-token': token }),
     },
   };
+});
+
+const errorLink = onError(({ graphQLErrors, operation }) => {
+  // 인증 실패 코드면 해당 session token/share-token/active-session 정리
+  // (UNAUTHORIZED | INVALID_TOKEN | SESSION_NOT_FOUND)
 });
 ```
 

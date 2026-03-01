@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/toast";
+import { UploadProgress, type UploadProgressItem } from "@/components/upload/upload-progress";
 import { MatchCard } from "@/components/session/match-card";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
 import { ShareButtons } from "@/components/share/share-buttons";
@@ -103,6 +105,43 @@ function SectionTitle({
   );
 }
 
+function uploadFileWithProgress(input: {
+  readonly file: File;
+  readonly presignedUrl: string;
+  readonly onProgress: (percent: number) => void;
+}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", input.presignedUrl, true);
+    xhr.setRequestHeader("Content-Type", input.file.type || "application/octet-stream");
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      const percent = Math.round((event.loaded / event.total) * 100);
+      input.onProgress(percent);
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        input.onProgress(100);
+        resolve();
+        return;
+      }
+      reject(new Error("File upload failed"));
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("File upload failed"));
+    };
+
+    xhr.onabort = () => {
+      reject(new Error("File upload aborted"));
+    };
+
+    xhr.send(input.file);
+  });
+}
+
 export default function SessionDetailPage() {
   const params = useParams<{ sessionId: string }>();
   const sessionGlobalId = decodeURIComponent(params.sessionId);
@@ -112,12 +151,13 @@ export default function SessionDetailPage() {
   const [commentBody, setCommentBody] = useState("");
   const [championDrafts, setChampionDrafts] = useState<Record<string, string>>({});
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadProgressItems, setUploadProgressItems] = useState<UploadProgressItem[]>([]);
   const [uploadTargetMatchId, setUploadTargetMatchId] = useState<string | null>(null);
   const [pendingDeleteMatch, setPendingDeleteMatch] = useState<{
     readonly matchId: string;
     readonly matchNo: number;
   } | null>(null);
+  const { showToast } = useToast();
 
   const sessionQuery = useQuery<SessionDetailData>(SESSION_QUERY, {
     variables: {
@@ -271,23 +311,25 @@ export default function SessionDetailPage() {
 
   const onUploadFiles = async () => {
     if (!session || pendingFiles.length === 0) return;
+    const files = pendingFiles;
     const isLol = session.contentType === "LOL";
     const uploadScope = isLol ? "MATCH" : "SESSION";
     const attachmentType = isLol ? "LOL_RESULT_SCREEN" : "FUTSAL_PHOTO";
     const matchId = isLol ? uploadTargetMatchId : null;
     if (isLol && !matchId) {
-      setUploadMessage("업로드할 매치를 먼저 선택해주세요.");
+      showToast({
+        message: "업로드할 매치를 먼저 선택해주세요.",
+        tone: "error",
+      });
       return;
     }
 
     try {
-      setUploadMessage(null);
-
       const createResult = await createPresignedUploads({
         variables: {
           input: {
             sessionId: session.id,
-            files: pendingFiles.map((file) => ({
+            files: files.map((file) => ({
               contentType: file.type || "application/octet-stream",
               originalFileName: file.name,
               scope: uploadScope,
@@ -300,23 +342,65 @@ export default function SessionDetailPage() {
 
       const uploads: Array<{ uploadId: string; presignedUrl: string }> =
         createResult.data?.createPresignedUploads?.uploads ?? [];
-      if (uploads.length !== pendingFiles.length) {
+      if (uploads.length !== files.length) {
         throw new Error("Presigned upload count mismatch");
       }
 
       await Promise.all(
         uploads.map(async (upload, index) => {
-          const file = pendingFiles[index];
+          const file = files[index];
           if (!file) throw new Error("Upload file is missing");
-          const response = await fetch(upload.presignedUrl, {
-            method: "PUT",
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
-            },
-            body: file,
-          });
-          if (!response.ok) {
-            throw new Error("File upload failed");
+          setUploadProgressItems((prev) =>
+            prev.map((item, itemIndex) =>
+              itemIndex === index
+                ? {
+                    ...item,
+                    status: "uploading",
+                    percent: 0,
+                  }
+                : item,
+            ),
+          );
+          try {
+            await uploadFileWithProgress({
+              file,
+              presignedUrl: upload.presignedUrl,
+              onProgress: (percent) => {
+                setUploadProgressItems((prev) =>
+                  prev.map((item, itemIndex) =>
+                    itemIndex === index
+                      ? {
+                          ...item,
+                          percent,
+                        }
+                      : item,
+                  ),
+                );
+              },
+            });
+            setUploadProgressItems((prev) =>
+              prev.map((item, itemIndex) =>
+                itemIndex === index
+                  ? {
+                      ...item,
+                      status: "completed",
+                      percent: 100,
+                    }
+                  : item,
+              ),
+            );
+          } catch (error) {
+            setUploadProgressItems((prev) =>
+              prev.map((item, itemIndex) =>
+                itemIndex === index
+                  ? {
+                      ...item,
+                      status: "failed",
+                    }
+                  : item,
+              ),
+            );
+            throw error;
           }
         }),
       );
@@ -324,26 +408,50 @@ export default function SessionDetailPage() {
       await completeUploads({
         variables: {
           input: {
-            files: pendingFiles.map((file, index) => ({
-              sessionId: session.id,
-              scope: uploadScope,
-              type: attachmentType,
-              uploadId: uploads[index]?.uploadId,
-              contentType: file.type || "application/octet-stream",
-              originalFileName: file.name,
-              size: file.size,
-              matchId,
-            })),
+            files: files.map((file, index) => {
+              const upload = uploads[index];
+              if (!upload?.uploadId) {
+                throw new Error("Upload id is missing");
+              }
+              return {
+                sessionId: session.id,
+                scope: uploadScope,
+                type: attachmentType,
+                uploadId: upload.uploadId,
+                contentType: file.type || "application/octet-stream",
+                originalFileName: file.name,
+                size: file.size,
+                matchId,
+              };
+            }),
           },
         },
         refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: session.id } }],
       });
 
       setPendingFiles([]);
-      setUploadMessage("업로드가 완료되었습니다.");
+      showToast({
+        message: "업로드가 완료되었습니다.",
+        tone: "success",
+      });
     } catch {
-      setUploadMessage("업로드에 실패했습니다. 다시 시도해주세요.");
+      showToast({
+        message: "업로드에 실패했습니다. 다시 시도해주세요.",
+        tone: "error",
+      });
     }
+  };
+
+  const onSelectFiles = (files: File[]) => {
+    setPendingFiles(files);
+    setUploadProgressItems(
+      files.map((file, index) => ({
+        id: `${file.name}-${file.size}-${index}-${Date.now()}`,
+        fileName: file.name,
+        percent: 0,
+        status: "ready",
+      })),
+    );
   };
 
   if (!hasToken) {
@@ -623,8 +731,9 @@ export default function SessionDetailPage() {
                   multiple
                   accept="image/*"
                   onChange={(event) =>
-                    setPendingFiles(Array.from(event.currentTarget.files ?? []))
+                    onSelectFiles(Array.from(event.currentTarget.files ?? []))
                   }
+                  disabled={busy}
                   className="w-full text-[10px] font-[600] text-[var(--pn-text-secondary)]"
                 />
                 {pendingFiles.length > 0 ? (
@@ -632,11 +741,7 @@ export default function SessionDetailPage() {
                     {pendingFiles.length}개 파일 선택됨
                   </div>
                 ) : null}
-                {uploadMessage ? (
-                  <div className="mt-[6px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
-                    {uploadMessage}
-                  </div>
-                ) : null}
+                <UploadProgress items={uploadProgressItems} />
               </div>
               <div className="grid grid-cols-4 gap-[8px]">
                 {allAttachments.map((attachment) => (

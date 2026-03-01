@@ -115,7 +115,9 @@ export default function NewSessionPage() {
     saveShareToken(localSessionId, payload.editorToken);
     setActiveSessionId(localSessionId);
 
-    router.push(`/s/${encodeURIComponent(sessionGlobalId)}/setup`);
+    router.push(
+      `/sessions/new/share-complete?sessionId=${encodeURIComponent(sessionGlobalId)}`,
+    );
   };
 
   return (

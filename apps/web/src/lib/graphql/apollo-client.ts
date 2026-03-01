@@ -8,14 +8,20 @@ import {
   NormalizedCacheObject,
 } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
+import { onError } from "@apollo/client/link/error";
 import {
   extractSessionLocalIdFromPath,
   tryDecodeSessionId,
 } from "@/lib/relay-id";
-import { getDefaultSessionId, getToken } from "@/lib/token";
+import { getDefaultSessionId, getToken, removeToken } from "@/lib/token";
 
 const GRAPHQL_ENDPOINT =
   process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql";
+const SESSION_RESET_ERROR_CODES = new Set([
+  "UNAUTHORIZED",
+  "INVALID_TOKEN",
+  "SESSION_NOT_FOUND",
+]);
 
 function findSessionIdInVariables(value: unknown): string | null {
   if (!value || typeof value !== "object") {
@@ -83,8 +89,23 @@ export function createApolloClient(): ApolloClient<NormalizedCacheObject> {
     };
   });
 
+  const errorLink = onError(({ graphQLErrors, operation }) => {
+    if (typeof window === "undefined") return;
+    if (!graphQLErrors?.length) return;
+
+    const shouldResetToken = graphQLErrors.some((error) => {
+      const code = error.extensions?.code;
+      return typeof code === "string" && SESSION_RESET_ERROR_CODES.has(code);
+    });
+    if (!shouldResetToken) return;
+
+    const sessionId = resolveSessionId(operation);
+    if (!sessionId) return;
+    removeToken(sessionId);
+  });
+
   return new ApolloClient({
-    link: ApolloLink.from([authLink, httpLink]),
+    link: ApolloLink.from([authLink, errorLink, httpLink]),
     cache: new InMemoryCache(),
     devtools: {
       enabled: process.env.NODE_ENV !== "production",

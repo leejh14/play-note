@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { copyShareLink, initKakao, shareSession } from "@/lib/kakao";
 
 export function ShareButtons({
@@ -21,7 +21,7 @@ export function ShareButtons({
   readonly totalCount: number;
   readonly title?: string | null;
 }) {
-  const [message, setMessage] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const onShareKakao = () => {
     try {
@@ -35,15 +35,27 @@ export function ShareButtons({
         totalCount,
         title,
       });
-      setMessage(null);
     } catch {
-      setMessage("카카오 공유를 사용할 수 없어 링크 복사를 이용해주세요.");
+      showToast({
+        message: "카카오 공유를 사용할 수 없어 링크 복사를 이용해주세요.",
+        tone: "error",
+      });
     }
   };
 
   const onCopy = async () => {
-    await copyShareLink(sessionId, token);
-    setMessage("링크가 복사되었습니다.");
+    try {
+      await copyShareLink(sessionId, token);
+      showToast({
+        message: "링크가 복사되었습니다.",
+        tone: "success",
+      });
+    } catch {
+      showToast({
+        message: "링크 복사에 실패했습니다. 다시 시도해주세요.",
+        tone: "error",
+      });
+    }
   };
 
   return (
@@ -54,11 +66,6 @@ export function ShareButtons({
       <Button variant="ghost" className="h-[28px] rounded-[8px] px-[8px] text-[10px]" onClick={onCopy}>
         링크
       </Button>
-      {message ? (
-        <span className="max-w-[120px] truncate text-[9px] font-[600] text-[var(--pn-text-muted)]">
-          {message}
-        </span>
-      ) : null}
     </div>
   );
 }

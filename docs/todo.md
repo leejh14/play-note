@@ -22,17 +22,21 @@
   - [x] `createSession` 무토큰 허용 (`@Public`) 적용 + 테스트 추가
   - [x] 무토큰 사용자 기본 진입 플로우(링크 유도 vs 생성 허용) 문구/화면 통일
   - [x] `/s/{id}?t=` 재진입 시 토큰 최신값으로 갱신(기존 값 덮어쓰기)
-- [~] **세션 목록 정책 정렬**
-  - active session 중심 조회 정책이 제품 요구와 맞는지 검증
-  - 필요 시 다중 세션 스위처 고도화(라벨/최근순/만료정리)
+- [x] **세션 목록 정책 정렬**
+  - active session 우선 선택 + 없을 때 최근 사용 세션 fallback 적용
+  - 세션 스위처 옵션에 최근 사용 시각 노출(최근순 정렬)
 
 ---
 
 ## 2) 화면/컴포넌트 후속
 
-- [ ] 공통 `toast` 컴포넌트 도입 및 인라인 상태 메시지 교체
-- [ ] 업로드 진행률 컴포넌트(`upload-progress`) 추가
-- [ ] `share-complete` 화면/컴포넌트 보강 (세션 생성 직후 공유 UX)
+- [x] 공통 `toast` 컴포넌트 도입 및 인라인 상태 메시지 교체
+  - `ToastProvider + useToast` 도입
+  - 공유 버튼/업로드 결과 인라인 메시지를 toast로 교체
+- [x] 업로드 진행률 컴포넌트(`upload-progress`) 추가
+  - presigned PUT 업로드 진행률(파일별) UI 반영
+- [x] `share-complete` 화면/컴포넌트 보강 (세션 생성 직후 공유 UX)
+  - `/sessions/new/share-complete` 경유 후 공유/복사/셋업 진입 흐름 적용
 - [ ] 세션 셋업 UX 고도화(드래그앤드롭 없이도 빠른 팀/라인 배치)
 - [ ] 세션 상세 매치 편집 UX 고도화(라인/챔피언 수정 피드백 개선)
 
@@ -40,10 +44,11 @@
 
 ## 3) 에러/권한 UX 정교화
 
-- [ ] `UNAUTHORIZED | INVALID_TOKEN | SESSION_NOT_FOUND | FORBIDDEN` 코드별 UX 카피 최종 확정
+- [x] `UNAUTHORIZED | INVALID_TOKEN | SESSION_NOT_FOUND | FORBIDDEN` 코드별 UX 카피 최종 확정
 - [x] 토큰 무효/세션 삭제 시 localStorage 정리 정책 일관화
   - `INVALID_TOKEN | SESSION_NOT_FOUND | UNAUTHORIZED` 시 token/share-token/active-session 정리
-- [ ] admin/editor 경계 UI를 전 화면에서 일관되게 재검증
+- [x] admin/editor 경계 UI를 전 화면에서 일관되게 재검증
+  - Friend CRUD, Match delete는 `authContext.role === ADMIN`일 때만 노출
 
 ---
 

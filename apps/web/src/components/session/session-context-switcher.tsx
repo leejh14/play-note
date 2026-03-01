@@ -4,6 +4,25 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type { StoredSessionToken } from "@/lib/token";
 
+function formatSessionOptionLabel(session: StoredSessionToken): string {
+  const shortSessionId =
+    session.sessionId.length > 16
+      ? `${session.sessionId.slice(0, 8)}…${session.sessionId.slice(-6)}`
+      : session.sessionId;
+
+  if (!session.lastUsedAt) {
+    return shortSessionId;
+  }
+
+  const recentLabel = new Intl.DateTimeFormat("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(session.lastUsedAt));
+  return `${shortSessionId} · ${recentLabel}`;
+}
+
 export function SessionContextSwitcher({
   activeSessionId,
   sessions,
@@ -33,8 +52,8 @@ export function SessionContextSwitcher({
         className="h-[28px] flex-1 rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[700] text-[var(--pn-text-secondary)] outline-none"
       >
         {sessions.map((item) => (
-          <option key={item.sessionId} value={item.sessionId}>
-            {item.sessionId}
+          <option key={item.sessionId} value={item.sessionId} title={item.sessionId}>
+            {formatSessionOptionLabel(item)}
           </option>
         ))}
       </select>

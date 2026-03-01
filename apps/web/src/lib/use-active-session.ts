@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   clearActiveSessionId,
+  getActiveSessionId,
   getDefaultSessionId,
   getToken,
   listStoredSessionTokens,
   removeToken,
+  SESSION_STORAGE_CHANGED_EVENT,
   setActiveSessionId,
   type StoredSessionToken,
 } from "@/lib/token";
@@ -35,6 +37,17 @@ export function useActiveSession() {
     setSnapshot(readSnapshot());
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onStorageChanged = () => refresh();
+    window.addEventListener("storage", onStorageChanged);
+    window.addEventListener(SESSION_STORAGE_CHANGED_EVENT, onStorageChanged);
+    return () => {
+      window.removeEventListener("storage", onStorageChanged);
+      window.removeEventListener(SESSION_STORAGE_CHANGED_EVENT, onStorageChanged);
+    };
+  }, [refresh]);
+
   const selectSession = useCallback((sessionId: string) => {
     setActiveSessionId(sessionId);
     setSnapshot(readSnapshot());
@@ -52,16 +65,14 @@ export function useActiveSession() {
       });
       return;
     }
-
-    const hasCurrent = nextSessions.some((item) => item.sessionId === snapshot.activeSessionId);
-    if (!hasCurrent) {
-      const fallback = nextSessions[0]?.sessionId;
-      if (fallback) {
-        setActiveSessionId(fallback);
+    if (!getActiveSessionId()) {
+      const fallbackSessionId = nextSessions[0]?.sessionId;
+      if (fallbackSessionId) {
+        setActiveSessionId(fallbackSessionId);
       }
     }
     setSnapshot(readSnapshot());
-  }, [snapshot.activeSessionId]);
+  }, []);
 
   const hasAuth = useMemo(
     () => Boolean(snapshot.activeSessionId && snapshot.activeToken),
