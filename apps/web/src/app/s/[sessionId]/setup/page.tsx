@@ -8,9 +8,11 @@ import { StatusBar } from "@/components/layout/status-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
 import { ShareButtons } from "@/components/share/share-buttons";
 import {
+  BULK_SET_TEAMS_MUTATION,
   CONFIRM_SESSION_MUTATION,
   SESSION_QUERY,
   SET_ATTENDANCE_MUTATION,
@@ -84,6 +86,8 @@ function attendanceLabel(status: "ATTENDING" | "UNDECIDED" | "NOT_ATTENDING"): "
   return "?";
 }
 
+const LOL_LANE_ORDER = ["TOP", "JG", "MID", "ADC", "SUP"] as const;
+
 export default function SessionSetupPage() {
   const router = useRouter();
   const params = useParams<{ sessionId: string }>();
@@ -100,7 +104,9 @@ export default function SessionSetupPage() {
 
   const [setAttendance, setAttendanceState] = useMutation(SET_ATTENDANCE_MUTATION);
   const [setTeamMember, setTeamMemberState] = useMutation(SET_TEAM_MEMBER_MUTATION);
+  const [bulkSetTeams, bulkSetTeamsState] = useMutation(BULK_SET_TEAMS_MUTATION);
   const [confirmSession, confirmSessionState] = useMutation(CONFIRM_SESSION_MUTATION);
+  const { showToast } = useToast();
 
   const session = sessionQuery.data?.session;
   const shareToken = localSessionId ? getShareToken(localSessionId) : null;
@@ -148,6 +154,63 @@ export default function SessionSetupPage() {
         },
       },
       refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: session.id } }],
+    });
+  };
+
+  const onQuickAssignBalancedTeams = async () => {
+    if (!session || attendingMembers.length === 0) return;
+
+    await bulkSetTeams({
+      variables: {
+        input: {
+          sessionId: session.id,
+          assignments: attendingMembers.map((member, index) => {
+            const team = index % 2 === 0 ? "A" : "B";
+            const assignedLane = teamMap.get(member.friend.id)?.lane ?? "UNKNOWN";
+            return {
+              friendId: member.friend.id,
+              team,
+              lane: session.contentType === "LOL" ? assignedLane : null,
+            };
+          }),
+        },
+      },
+      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: session.id } }],
+    });
+
+    showToast({
+      message: "팀을 균등 배정했습니다.",
+      tone: "success",
+    });
+  };
+
+  const onQuickFillLanes = async () => {
+    if (!session || session.contentType !== "LOL" || attendingMembers.length === 0) return;
+
+    const laneCursor: Record<"A" | "B", number> = { A: 0, B: 0 };
+    await bulkSetTeams({
+      variables: {
+        input: {
+          sessionId: session.id,
+          assignments: attendingMembers.map((member, index) => {
+            const assignedTeam = teamMap.get(member.friend.id)?.team ?? (index % 2 === 0 ? "A" : "B");
+            const laneIndex = laneCursor[assignedTeam];
+            laneCursor[assignedTeam] = laneIndex + 1;
+            const lane = LOL_LANE_ORDER[laneIndex] ?? "UNKNOWN";
+            return {
+              friendId: member.friend.id,
+              team: assignedTeam,
+              lane,
+            };
+          }),
+        },
+      },
+      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: session.id } }],
+    });
+
+    showToast({
+      message: "라인을 자동 배치했습니다.",
+      tone: "success",
     });
   };
 
@@ -215,6 +278,7 @@ export default function SessionSetupPage() {
   const busy =
     setAttendanceState.loading ||
     setTeamMemberState.loading ||
+    bulkSetTeamsState.loading ||
     confirmSessionState.loading ||
     sessionQuery.loading;
 
@@ -303,7 +367,32 @@ export default function SessionSetupPage() {
             </div>
 
             <div className="flex flex-col gap-[10px]">
-              <SectionHeader number={2} title="Team Assignment" />
+              <SectionHeader
+                number={2}
+                title="Team Assignment"
+                right={
+                  <div className="flex items-center gap-[6px]">
+                    <Button
+                      variant="secondary"
+                      className="h-[24px] rounded-[8px] px-[8px] text-[10px]"
+                      disabled={disabledByLock || busy || attendingMembers.length === 0}
+                      onClick={onQuickAssignBalancedTeams}
+                    >
+                      균등 팀
+                    </Button>
+                    {session.contentType === "LOL" ? (
+                      <Button
+                        variant="secondary"
+                        className="h-[24px] rounded-[8px] px-[8px] text-[10px]"
+                        disabled={disabledByLock || busy || attendingMembers.length === 0}
+                        onClick={onQuickFillLanes}
+                      >
+                        라인 자동
+                      </Button>
+                    ) : null}
+                  </div>
+                }
+              />
               <Card>
                 <div className="flex flex-col gap-[8px]">
                   {attendingMembers.map((member) => {

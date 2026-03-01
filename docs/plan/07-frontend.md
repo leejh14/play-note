@@ -250,6 +250,12 @@ const errorLink = onError(({ graphQLErrors, operation }) => {
 └─────────────────────────────┘
 ```
 
+구현 결정:
+- 드래그앤드롭 없이 빠른 셋업을 위해 퀵 액션 제공
+  - `균등 팀`: 참석자 기준 A/B 자동 균등 배정
+  - `라인 자동`(LoL): 팀별 TOP/JG/MID/ADC/SUP 순서 자동 배치
+  - 둘 다 `bulkSetTeams` mutation 1회 호출로 반영
+
 ### 4.5 세션 상세 (`/s/{id}/detail`)
 
 ```
@@ -285,6 +291,12 @@ const errorLink = onError(({ graphQLErrors, operation }) => {
 │ [댓글 입력...]              │
 └─────────────────────────────┘
 ```
+
+구현 결정:
+- 매치 편집 피드백 개선:
+  - 라인 변경 시 inline 상태 표기(`저장 중/저장됨/저장 실패`)
+  - 챔피언 입력은 `Enter`/`저장` 버튼으로 명시 저장
+  - 챔피언 필드도 inline 상태 표기(`저장 중/저장됨/저장 실패`)
 
 ### 4.6 통계 개요 (`/stats`)
 

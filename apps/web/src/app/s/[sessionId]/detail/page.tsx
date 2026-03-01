@@ -90,6 +90,8 @@ type AuthContextData = {
   };
 };
 
+type FieldUpdateStatus = "saving" | "saved" | "error";
+
 function SectionTitle({
   title,
   right,
@@ -103,6 +105,29 @@ function SectionTitle({
       {right}
     </div>
   );
+}
+
+function toStatusMeta(status: FieldUpdateStatus | undefined): {
+  readonly label: string;
+  readonly className: string;
+} | null {
+  if (!status) return null;
+  if (status === "saving") {
+    return {
+      label: "저장 중...",
+      className: "text-[var(--pn-text-muted)]",
+    };
+  }
+  if (status === "saved") {
+    return {
+      label: "저장됨",
+      className: "text-[var(--pn-primary)]",
+    };
+  }
+  return {
+    label: "저장 실패",
+    className: "text-[var(--pn-pink)]",
+  };
 }
 
 function uploadFileWithProgress(input: {
@@ -150,6 +175,10 @@ export default function SessionDetailPage() {
 
   const [commentBody, setCommentBody] = useState("");
   const [championDrafts, setChampionDrafts] = useState<Record<string, string>>({});
+  const [laneUpdateStatus, setLaneUpdateStatus] = useState<Record<string, FieldUpdateStatus>>({});
+  const [championUpdateStatus, setChampionUpdateStatus] = useState<
+    Record<string, FieldUpdateStatus>
+  >({});
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadProgressItems, setUploadProgressItems] = useState<UploadProgressItem[]>([]);
   const [uploadTargetMatchId, setUploadTargetMatchId] = useState<string | null>(null);
@@ -234,31 +263,75 @@ export default function SessionDetailPage() {
   };
 
   const onSetLane = async (matchId: string, friendId: string, lane: string) => {
-    await setLane({
-      variables: {
-        input: {
-          matchId,
-          friendId,
-          lane,
+    const key = `${matchId}:${friendId}`;
+    setLaneUpdateStatus((prev) => ({
+      ...prev,
+      [key]: "saving",
+    }));
+    try {
+      await setLane({
+        variables: {
+          input: {
+            matchId,
+            friendId,
+            lane,
+          },
         },
-      },
-      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
-    });
+        refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
+      });
+      setLaneUpdateStatus((prev) => ({
+        ...prev,
+        [key]: "saved",
+      }));
+    } catch {
+      setLaneUpdateStatus((prev) => ({
+        ...prev,
+        [key]: "error",
+      }));
+      showToast({
+        message: "라인 저장에 실패했습니다. 다시 시도해주세요.",
+        tone: "error",
+      });
+    }
   };
 
   const onSaveChampion = async (matchId: string, friendId: string) => {
     const key = `${matchId}:${friendId}`;
     const champion = championDrafts[key];
-    await setChampion({
-      variables: {
-        input: {
-          matchId,
-          friendId,
-          champion: champion?.trim() || null,
+    setChampionUpdateStatus((prev) => ({
+      ...prev,
+      [key]: "saving",
+    }));
+    try {
+      await setChampion({
+        variables: {
+          input: {
+            matchId,
+            friendId,
+            champion: champion?.trim() || null,
+          },
         },
-      },
-      refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
-    });
+        refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
+      });
+      setChampionDrafts((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      setChampionUpdateStatus((prev) => ({
+        ...prev,
+        [key]: "saved",
+      }));
+    } catch {
+      setChampionUpdateStatus((prev) => ({
+        ...prev,
+        [key]: "error",
+      }));
+      showToast({
+        message: "챔피언 저장에 실패했습니다. 다시 시도해주세요.",
+        tone: "error",
+      });
+    }
   };
 
   const onConfirmResult = async (matchId: string, winnerSide: "BLUE" | "RED") => {
@@ -637,38 +710,80 @@ export default function SessionDetailPage() {
                   <div className="mt-[10px] flex flex-col gap-[8px]">
                     {match.teamMembers.map((member) => {
                       const key = `${match.id}:${member.friend.id}`;
+                      const laneStatusMeta = toStatusMeta(laneUpdateStatus[key]);
+                      const championStatusMeta = toStatusMeta(championUpdateStatus[key]);
+                      const championValue = championDrafts[key] ?? member.champion ?? "";
+                      const isChampionDirty =
+                        championValue.trim() !== (member.champion ?? "").trim();
                       return (
-                        <div key={key} className="flex items-center gap-[8px]">
-                          <div className="w-[80px] text-[11px] font-[700] text-[var(--pn-text-primary)]">
-                            {member.friend.displayName}
+                        <div key={key} className="flex flex-col gap-[4px]">
+                          <div className="flex items-center gap-[8px]">
+                            <div className="w-[80px] text-[11px] font-[700] text-[var(--pn-text-primary)]">
+                              {member.friend.displayName}
+                            </div>
+                            <select
+                              className="h-[28px] rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[700] text-[var(--pn-text-secondary)] outline-none"
+                              value={member.lane}
+                              disabled={busy}
+                              onChange={(event) =>
+                                onSetLane(match.id, member.friend.id, event.target.value)
+                              }
+                            >
+                              {["TOP", "JG", "MID", "ADC", "SUP", "UNKNOWN"].map((lane) => (
+                                <option key={lane} value={lane}>
+                                  {lane}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              className="h-[28px] flex-1 rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[600] text-[var(--pn-text-primary)] outline-none"
+                              value={championValue}
+                              placeholder="Champion"
+                              onChange={(event) =>
+                                {
+                                  setChampionDrafts((prev) => ({
+                                    ...prev,
+                                    [key]: event.target.value,
+                                  }));
+                                  setChampionUpdateStatus((prev) => {
+                                    if (!prev[key]) return prev;
+                                    const next = { ...prev };
+                                    delete next[key];
+                                    return next;
+                                  });
+                                }
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" && isChampionDirty && !busy) {
+                                  event.preventDefault();
+                                  void onSaveChampion(match.id, member.friend.id);
+                                }
+                              }}
+                              disabled={busy}
+                            />
+                            <Button
+                              variant="secondary"
+                              className="h-[28px] rounded-[8px] px-[8px] text-[10px]"
+                              disabled={!isChampionDirty || busy}
+                              onClick={() => onSaveChampion(match.id, member.friend.id)}
+                            >
+                              저장
+                            </Button>
                           </div>
-                          <select
-                            className="h-[28px] rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[700] text-[var(--pn-text-secondary)] outline-none"
-                            value={member.lane}
-                            disabled={busy}
-                            onChange={(event) =>
-                              onSetLane(match.id, member.friend.id, event.target.value)
-                            }
-                          >
-                            {["TOP", "JG", "MID", "ADC", "SUP", "UNKNOWN"].map((lane) => (
-                              <option key={lane} value={lane}>
-                                {lane}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            className="h-[28px] flex-1 rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[600] text-[var(--pn-text-primary)] outline-none"
-                            value={championDrafts[key] ?? member.champion ?? ""}
-                            placeholder="Champion"
-                            onChange={(event) =>
-                              setChampionDrafts((prev) => ({
-                                ...prev,
-                                [key]: event.target.value,
-                              }))
-                            }
-                            onBlur={() => onSaveChampion(match.id, member.friend.id)}
-                            disabled={busy}
-                          />
+                          {laneStatusMeta || championStatusMeta ? (
+                            <div className="ml-[88px] flex items-center gap-[10px] text-[9px] font-[700]">
+                              {laneStatusMeta ? (
+                                <span className={laneStatusMeta.className}>
+                                  Lane: {laneStatusMeta.label}
+                                </span>
+                              ) : null}
+                              {championStatusMeta ? (
+                                <span className={championStatusMeta.className}>
+                                  Champion: {championStatusMeta.label}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })}
