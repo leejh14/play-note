@@ -21,6 +21,13 @@ import {
 } from "@/lib/token";
 
 type SessionStatus = "SCHEDULED" | "CONFIRMED" | "DONE";
+type AuthErrorCode = "UNAUTHORIZED" | "INVALID_TOKEN" | "SESSION_NOT_FOUND";
+
+const AUTH_ERROR_CODES = new Set<AuthErrorCode>([
+  "UNAUTHORIZED",
+  "INVALID_TOKEN",
+  "SESSION_NOT_FOUND",
+]);
 
 function EntryLoading() {
   return (
@@ -50,18 +57,31 @@ export default function SessionEntryPage() {
     () => tryDecodeSessionId(globalSessionId),
     [globalSessionId],
   );
+  const tokenFromQuery = searchParams.get("t")?.trim() || null;
+  const currentToken = useMemo(() => {
+    if (!localSessionId) return null;
+    if (tokenFromQuery) return tokenFromQuery;
+    return getToken(localSessionId);
+  }, [localSessionId, tokenFromQuery]);
 
   useEffect(() => {
-    if (!localSessionId) return;
-    const tokenFromQuery = searchParams.get("t")?.trim();
-    if (tokenFromQuery) {
-      saveToken(localSessionId, tokenFromQuery);
-      saveShareToken(localSessionId, tokenFromQuery);
-      setActiveSessionId(localSessionId);
-    }
-  }, [localSessionId, searchParams]);
+    if (!localSessionId || !tokenFromQuery) return;
 
-  const currentToken = localSessionId ? getToken(localSessionId) : null;
+    saveToken(localSessionId, tokenFromQuery);
+    saveShareToken(localSessionId, tokenFromQuery);
+    setActiveSessionId(localSessionId);
+  }, [localSessionId, tokenFromQuery]);
+
+  const queryContext = useMemo(() => {
+    if (!localSessionId || !currentToken) return undefined;
+    return {
+      headers: {
+        "x-session-id": localSessionId,
+        "x-session-token": currentToken,
+      },
+    };
+  }, [localSessionId, currentToken]);
+
   const shouldFetchSession = Boolean(globalSessionId && localSessionId && currentToken);
 
   const { data, loading, error } = useQuery<{
@@ -72,23 +92,23 @@ export default function SessionEntryPage() {
     variables: { sessionId: globalSessionId },
     skip: !shouldFetchSession,
     fetchPolicy: "network-only",
+    context: queryContext,
   });
 
-  useEffect(() => {
-    if (!localSessionId || !error) return;
+  const errorCode = useMemo(() => {
+    const code = error?.graphQLErrors[0]?.extensions?.code;
+    return typeof code === "string" ? code : null;
+  }, [error]);
 
-    const code = error.graphQLErrors[0]?.extensions?.code;
-    if (
-      code === "INVALID_TOKEN" ||
-      code === "SESSION_NOT_FOUND" ||
-      code === "UNAUTHORIZED"
-    ) {
-      removeToken(localSessionId);
-      if (getActiveSessionId() === localSessionId) {
-        clearActiveSessionId();
-      }
+  useEffect(() => {
+    if (!localSessionId || !errorCode) return;
+    if (!AUTH_ERROR_CODES.has(errorCode as AuthErrorCode)) return;
+
+    removeToken(localSessionId);
+    if (getActiveSessionId() === localSessionId) {
+      clearActiveSessionId();
     }
-  }, [error, localSessionId]);
+  }, [errorCode, localSessionId]);
 
   useEffect(() => {
     if (!localSessionId) return;
@@ -118,6 +138,22 @@ export default function SessionEntryPage() {
     );
   }
 
+  if (errorCode && AUTH_ERROR_CODES.has(errorCode as AuthErrorCode)) {
+    return (
+      <PhoneFrame>
+        <div className="flex min-h-screen flex-col">
+          <StatusBar />
+          <div className="flex flex-1 items-center px-[16px]">
+            <TokenRequiredState
+              title="다시 초대 링크가 필요합니다"
+              description={getGraphqlErrorMessage(errorCode)}
+            />
+          </div>
+        </div>
+      </PhoneFrame>
+    );
+  }
+
   if (!currentToken) {
     return (
       <PhoneFrame>
@@ -131,35 +167,7 @@ export default function SessionEntryPage() {
     );
   }
 
-  if (loading || !data) {
-    return <EntryLoading />;
-  }
-
   if (error) {
-    const errorCode = error.graphQLErrors[0]?.extensions?.code;
-
-    if (
-      errorCode === "INVALID_TOKEN" ||
-      errorCode === "SESSION_NOT_FOUND" ||
-      errorCode === "UNAUTHORIZED"
-    ) {
-      return (
-        <PhoneFrame>
-          <div className="flex min-h-screen flex-col">
-            <StatusBar />
-            <div className="flex flex-1 items-center px-[16px]">
-              <TokenRequiredState
-                title="다시 초대 링크가 필요합니다"
-                description={getGraphqlErrorMessage(
-                  typeof errorCode === "string" ? errorCode : undefined,
-                )}
-              />
-            </div>
-          </div>
-        </PhoneFrame>
-      );
-    }
-
     return (
       <PhoneFrame>
         <div className="flex min-h-screen flex-col">
@@ -170,7 +178,7 @@ export default function SessionEntryPage() {
                 접근할 수 없습니다
               </div>
               <div className="text-[12px] font-[600] text-[var(--pn-text-muted)]">
-                {getGraphqlErrorMessage(typeof errorCode === "string" ? errorCode : undefined)}
+                {getGraphqlErrorMessage(errorCode)}
               </div>
               <Button
                 className="mt-[8px] h-[40px] rounded-[10px] px-[14px] text-[13px]"
@@ -183,6 +191,10 @@ export default function SessionEntryPage() {
         </div>
       </PhoneFrame>
     );
+  }
+
+  if (loading || !data) {
+    return <EntryLoading />;
   }
 
   return <EntryLoading />;
