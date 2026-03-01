@@ -27,6 +27,11 @@ export default defineConfig({
           env: {
             API_PORT: "4000",
             PUBLIC_BASE_URL: webBaseUrl,
+            AWS_REGION: process.env.AWS_REGION ?? "us-east-1",
+            AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? "playnote-e2e-access-key",
+            AWS_SECRET_ACCESS_KEY:
+              process.env.AWS_SECRET_ACCESS_KEY ?? "playnote-e2e-secret-key",
+            S3_BUCKET: process.env.S3_BUCKET ?? "playnote-e2e-bucket",
           },
         },
         {

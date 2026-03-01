@@ -19,6 +19,13 @@ export type CreatedSession = {
   readonly adminToken: string;
 };
 
+export type SessionSnapshot = {
+  readonly status: "SCHEDULED" | "CONFIRMED" | "DONE";
+  readonly matchCount: number;
+  readonly attachmentCount: number;
+  readonly matchAttachmentCount: number;
+};
+
 export async function createSessionViaApi(input?: {
   readonly contentType?: "LOL" | "FUTSAL";
   readonly title?: string;
@@ -73,14 +80,68 @@ export async function createSessionViaApi(input?: {
   };
 }
 
+export async function getSessionSnapshotViaApi(input: {
+  readonly globalSessionId: string;
+  readonly localSessionId: string;
+  readonly token: string;
+}): Promise<SessionSnapshot> {
+  const response = await executeGraphql<{
+    readonly session: {
+      readonly status: "SCHEDULED" | "CONFIRMED" | "DONE";
+      readonly matches: Array<{
+        readonly attachments: Array<{ readonly id: string }>;
+      }>;
+      readonly attachments: Array<{ readonly id: string }>;
+    };
+  }>({
+    query: `
+      query SessionSnapshot($sessionId: ID!) {
+        session(sessionId: $sessionId) {
+          status
+          matches {
+            attachments {
+              id
+            }
+          }
+          attachments {
+            id
+          }
+        }
+      }
+    `,
+    variables: {
+      sessionId: input.globalSessionId,
+    },
+    headers: {
+      "x-session-id": input.localSessionId,
+      "x-session-token": input.token,
+    },
+  });
+
+  const session = response.session;
+  const matchAttachmentCount = session.matches.reduce(
+    (count, match) => count + match.attachments.length,
+    0,
+  );
+
+  return {
+    status: session.status,
+    matchCount: session.matches.length,
+    attachmentCount: session.attachments.length,
+    matchAttachmentCount,
+  };
+}
+
 async function executeGraphql<T>(input: {
   readonly query: string;
   readonly variables?: Record<string, unknown>;
+  readonly headers?: Record<string, string>;
 }): Promise<T> {
   const response = await fetch(DEFAULT_GRAPHQL_ENDPOINT, {
     method: "POST",
     headers: {
       "content-type": "application/json",
+      ...(input.headers ?? {}),
     },
     body: JSON.stringify({
       query: input.query,

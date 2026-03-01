@@ -31,12 +31,12 @@ export class MikroAttachmentRepository implements IAttachmentRepository {
 
   async countBySessionIdForUpdate(sessionId: string): Promise<number> {
     const conn = this.em.getConnection();
-    const result = await conn.execute(
-      `SELECT COUNT(*) as count FROM attachment WHERE session_id = $1 FOR UPDATE`,
+    await conn.execute(
+      `SELECT id FROM "session" WHERE id = ? FOR UPDATE`,
       [sessionId],
       'get',
-    ) as { count: string };
-    return parseInt(result?.count ?? '0', 10);
+    );
+    return this.em.count(AttachmentOrmEntity, { sessionId });
   }
 
   async save(attachment: Attachment): Promise<void> {
