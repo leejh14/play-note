@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 import { useParams } from "next/navigation";
 import { PhoneFrame } from "@/components/layout/phone-frame";
@@ -8,6 +8,7 @@ import { StatusBar } from "@/components/layout/status-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { MatchCard } from "@/components/session/match-card";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
 import { ShareButtons } from "@/components/share/share-buttons";
@@ -63,6 +64,10 @@ type SessionDetailData = {
         readonly lane: "TOP" | "JG" | "MID" | "ADC" | "SUP" | "UNKNOWN";
         readonly champion: string | null;
       }>;
+      readonly attachments: Array<{
+        readonly id: string;
+        readonly url: string;
+      }>;
     }>;
     readonly attachments: Array<{
       readonly id: string;
@@ -108,6 +113,11 @@ export default function SessionDetailPage() {
   const [championDrafts, setChampionDrafts] = useState<Record<string, string>>({});
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadTargetMatchId, setUploadTargetMatchId] = useState<string | null>(null);
+  const [pendingDeleteMatch, setPendingDeleteMatch] = useState<{
+    readonly matchId: string;
+    readonly matchNo: number;
+  } | null>(null);
 
   const sessionQuery = useQuery<SessionDetailData>(SESSION_QUERY, {
     variables: {
@@ -140,6 +150,36 @@ export default function SessionDetailPage() {
     () => session?.teamPresetMembers.filter((member) => member.team === "B") ?? [],
     [session?.teamPresetMembers],
   );
+  const allAttachments = useMemo(() => {
+    if (!session) return [];
+    const sessionLevel = session.attachments.map((item) => ({
+      id: item.id,
+      url: item.url,
+      label: "Session",
+    }));
+    const matchLevel = session.matches.flatMap((match) =>
+      match.attachments.map((item) => ({
+        id: item.id,
+        url: item.url,
+        label: `Match #${match.matchNo}`,
+      })),
+    );
+    return [...matchLevel, ...sessionLevel];
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || session.contentType !== "LOL") {
+      setUploadTargetMatchId(null);
+      return;
+    }
+
+    setUploadTargetMatchId((current) => {
+      if (current && session.matches.some((match) => match.id === current)) {
+        return current;
+      }
+      return session.matches[0]?.id ?? null;
+    });
+  }, [session]);
 
   const onCreateMatch = async () => {
     if (!session) return;
@@ -209,6 +249,12 @@ export default function SessionDetailPage() {
     });
   };
 
+  const onConfirmDeleteMatch = async () => {
+    if (!pendingDeleteMatch) return;
+    await onDeleteMatch(pendingDeleteMatch.matchId);
+    setPendingDeleteMatch(null);
+  };
+
   const onCreateComment = async () => {
     if (!session || !commentBody.trim()) return;
     await createComment({
@@ -225,8 +271,15 @@ export default function SessionDetailPage() {
 
   const onUploadFiles = async () => {
     if (!session || pendingFiles.length === 0) return;
+    const isLol = session.contentType === "LOL";
+    const uploadScope = isLol ? "MATCH" : "SESSION";
+    const attachmentType = isLol ? "LOL_RESULT_SCREEN" : "FUTSAL_PHOTO";
+    const matchId = isLol ? uploadTargetMatchId : null;
+    if (isLol && !matchId) {
+      setUploadMessage("업로드할 매치를 먼저 선택해주세요.");
+      return;
+    }
 
-    const attachmentType = session.contentType === "LOL" ? "LOL_RESULT_SCREEN" : "FUTSAL_PHOTO";
     try {
       setUploadMessage(null);
 
@@ -237,8 +290,9 @@ export default function SessionDetailPage() {
             files: pendingFiles.map((file) => ({
               contentType: file.type || "application/octet-stream",
               originalFileName: file.name,
-              scope: "SESSION",
+              scope: uploadScope,
               type: attachmentType,
+              matchId,
             })),
           },
         },
@@ -272,12 +326,13 @@ export default function SessionDetailPage() {
           input: {
             files: pendingFiles.map((file, index) => ({
               sessionId: session.id,
-              scope: "SESSION",
+              scope: uploadScope,
               type: attachmentType,
               uploadId: uploads[index]?.uploadId,
               contentType: file.type || "application/octet-stream",
               originalFileName: file.name,
               size: file.size,
+              matchId,
             })),
           },
         },
@@ -440,7 +495,12 @@ export default function SessionDetailPage() {
                       <Button
                         variant="ghost"
                         className="h-[26px] rounded-[8px] px-[8px] text-[10px]"
-                        onClick={() => onDeleteMatch(match.id)}
+                        onClick={() =>
+                          setPendingDeleteMatch({
+                            matchId: match.id,
+                            matchNo: match.matchNo,
+                          })
+                        }
                       >
                         Delete
                       </Button>
@@ -516,7 +576,11 @@ export default function SessionDetailPage() {
                   <Button
                     variant="secondary"
                     className="h-[28px] rounded-[8px] px-[10px] text-[10px]"
-                    disabled={pendingFiles.length === 0 || busy}
+                    disabled={
+                      pendingFiles.length === 0 ||
+                      busy ||
+                      (session.contentType === "LOL" && !uploadTargetMatchId)
+                    }
                     onClick={onUploadFiles}
                   >
                     {createPresignedState.loading || completeUploadsState.loading
@@ -526,6 +590,34 @@ export default function SessionDetailPage() {
                 }
               />
               <div className="rounded-[10px] border border-[var(--pn-border)] bg-white px-[10px] py-[10px]">
+                {session.contentType === "LOL" ? (
+                  session.matches.length > 0 ? (
+                    <div className="mb-[8px] flex items-center gap-[8px]">
+                      <span className="text-[10px] font-[700] text-[var(--pn-text-muted)]">
+                        Target
+                      </span>
+                      <select
+                        className="h-[28px] flex-1 rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[700] text-[var(--pn-text-secondary)] outline-none"
+                        value={uploadTargetMatchId ?? ""}
+                        onChange={(event) => setUploadTargetMatchId(event.target.value || null)}
+                      >
+                        {session.matches.map((match) => (
+                          <option key={match.id} value={match.id}>
+                            Match #{match.matchNo}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="mb-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
+                      먼저 Match를 생성한 뒤 결과 화면을 업로드하세요.
+                    </div>
+                  )
+                ) : (
+                  <div className="mb-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
+                    Session photos 업로드
+                  </div>
+                )}
                 <input
                   type="file"
                   multiple
@@ -547,15 +639,16 @@ export default function SessionDetailPage() {
                 ) : null}
               </div>
               <div className="grid grid-cols-4 gap-[8px]">
-                {session.attachments.map((attachment) => (
+                {allAttachments.map((attachment) => (
                   <a
                     key={attachment.id}
                     href={attachment.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-[66px] items-center justify-center rounded-[10px] bg-[var(--pn-bg-card)] text-[10px] font-[700] text-[var(--pn-text-secondary)]"
+                    className="flex h-[66px] flex-col items-center justify-center rounded-[10px] bg-[var(--pn-bg-card)] text-[10px] font-[700] text-[var(--pn-text-secondary)]"
                   >
-                    View
+                    <span>{attachment.label}</span>
+                    <span className="text-[9px]">View</span>
                   </a>
                 ))}
               </div>
@@ -594,6 +687,19 @@ export default function SessionDetailPage() {
             </div>
           </div>
         </div>
+        <ConfirmDialog
+          open={Boolean(pendingDeleteMatch)}
+          title="매치 삭제"
+          description={
+            pendingDeleteMatch
+              ? `Match #${pendingDeleteMatch.matchNo}를 삭제하시겠습니까?`
+              : ""
+          }
+          confirmText="삭제"
+          loading={deleteMatchState.loading}
+          onConfirm={onConfirmDeleteMatch}
+          onCancel={() => setPendingDeleteMatch(null)}
+        />
       </div>
     </PhoneFrame>
   );

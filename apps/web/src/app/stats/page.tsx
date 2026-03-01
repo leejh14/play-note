@@ -6,9 +6,10 @@ import { PhoneFrame } from "@/components/layout/phone-frame";
 import { StatusBar } from "@/components/layout/status-bar";
 import { StatsTable, type StatsTableRow } from "@/components/stats/stats-table";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
+import { SessionContextSwitcher } from "@/components/session/session-context-switcher";
 import { STATS_OVERVIEW_QUERY } from "@/lib/graphql/operations";
 import { getGraphqlErrorMessage } from "@/lib/error-messages";
-import { getDefaultSessionId, getToken } from "@/lib/token";
+import { useActiveSession } from "@/lib/use-active-session";
 
 type StatsOverviewQueryData = {
   readonly statsOverview: {
@@ -28,9 +29,13 @@ type StatsOverviewQueryData = {
 };
 
 export default function StatsPage() {
-  const activeSessionId = getDefaultSessionId();
-  const activeToken = activeSessionId ? getToken(activeSessionId) : null;
-  const hasAuth = Boolean(activeSessionId && activeToken);
+  const {
+    activeSessionId,
+    hasAuth,
+    storedSessions,
+    selectSession,
+    removeSession,
+  } = useActiveSession();
 
   const { data, loading, error } = useQuery<StatsOverviewQueryData>(STATS_OVERVIEW_QUERY, {
     skip: !hasAuth,
@@ -56,6 +61,14 @@ export default function StatsPage() {
         </div>
 
         <div className="px-[16px] pt-[6px]">
+          {hasAuth ? (
+            <SessionContextSwitcher
+              activeSessionId={activeSessionId}
+              sessions={storedSessions}
+              onSelect={selectSession}
+              onRemove={removeSession}
+            />
+          ) : null}
           <div className="grid grid-cols-[1fr_64px_64px_64px] gap-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
             <div>Friend</div>
             <div className="text-right">WR</div>

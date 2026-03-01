@@ -6,8 +6,10 @@ import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { PhoneFrame } from "@/components/layout/phone-frame";
 import { StatusBar } from "@/components/layout/status-bar";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { IconSearch } from "@/components/icons";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
+import { SessionContextSwitcher } from "@/components/session/session-context-switcher";
 import {
   ARCHIVE_FRIEND_MUTATION,
   AUTH_CONTEXT_QUERY,
@@ -17,7 +19,7 @@ import {
   UPDATE_FRIEND_MUTATION,
 } from "@/lib/graphql/operations";
 import { getGraphqlErrorMessage } from "@/lib/error-messages";
-import { getDefaultSessionId, getToken } from "@/lib/token";
+import { useActiveSession } from "@/lib/use-active-session";
 
 type AuthContextQueryData = {
   readonly authContext: {
@@ -41,10 +43,18 @@ export default function FriendsPage() {
   const [newDisplayName, setNewDisplayName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDisplayName, setEditingDisplayName] = useState("");
-
-  const activeSessionId = getDefaultSessionId();
-  const activeToken = activeSessionId ? getToken(activeSessionId) : null;
-  const hasAuth = Boolean(activeSessionId && activeToken);
+  const [pendingArchive, setPendingArchive] = useState<{
+    readonly friendId: string;
+    readonly archived: boolean;
+    readonly displayName: string;
+  } | null>(null);
+  const {
+    activeSessionId,
+    hasAuth,
+    storedSessions,
+    selectSession,
+    removeSession,
+  } = useActiveSession();
 
   const authContextQuery = useQuery<AuthContextQueryData>(AUTH_CONTEXT_QUERY, {
     skip: !hasAuth,
@@ -59,8 +69,8 @@ export default function FriendsPage() {
 
   const [createFriend, createState] = useMutation(CREATE_FRIEND_MUTATION);
   const [updateFriend] = useMutation(UPDATE_FRIEND_MUTATION);
-  const [archiveFriend] = useMutation(ARCHIVE_FRIEND_MUTATION);
-  const [restoreFriend] = useMutation(RESTORE_FRIEND_MUTATION);
+  const [archiveFriend, archiveState] = useMutation(ARCHIVE_FRIEND_MUTATION);
+  const [restoreFriend, restoreState] = useMutation(RESTORE_FRIEND_MUTATION);
 
   const isAdmin = authContextQuery.data?.authContext.role === "ADMIN";
   const friends = friendsQuery.data?.friends ?? [];
@@ -117,6 +127,12 @@ export default function FriendsPage() {
     await friendsQuery.refetch();
   };
 
+  const onConfirmArchiveToggle = async () => {
+    if (!pendingArchive) return;
+    await onArchiveToggle(pendingArchive.friendId, pendingArchive.archived);
+    setPendingArchive(null);
+  };
+
   return (
     <PhoneFrame>
       <div className="flex min-h-screen flex-col">
@@ -136,6 +152,12 @@ export default function FriendsPage() {
             <TokenRequiredState />
           ) : (
             <>
+              <SessionContextSwitcher
+                activeSessionId={activeSessionId}
+                sessions={storedSessions}
+                onSelect={selectSession}
+                onRemove={removeSession}
+              />
               <div className="flex h-[40px] items-center gap-[10px] rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] text-[12px] font-[600] text-[var(--pn-text-muted)]">
                 <IconSearch className="h-[16px] w-[16px]" />
                 <input
@@ -260,7 +282,13 @@ export default function FriendsPage() {
                         <Button
                           variant="ghost"
                           className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
-                          onClick={() => onArchiveToggle(friend.id, friend.isArchived)}
+                          onClick={() =>
+                            setPendingArchive({
+                              friendId: friend.id,
+                              archived: friend.isArchived,
+                              displayName: friend.displayName,
+                            })
+                          }
                         >
                           {friend.isArchived ? "Restore" : "Archive"}
                         </Button>
@@ -274,6 +302,21 @@ export default function FriendsPage() {
         </div>
 
         <BottomTabBar />
+        <ConfirmDialog
+          open={Boolean(pendingArchive)}
+          title={pendingArchive?.archived ? "친구 복원" : "친구 보관"}
+          description={
+            pendingArchive
+              ? pendingArchive.archived
+                ? `${pendingArchive.displayName} 친구를 복원하시겠습니까?`
+                : `${pendingArchive.displayName} 친구를 보관 처리하시겠습니까?`
+              : ""
+          }
+          confirmText={pendingArchive?.archived ? "복원" : "보관"}
+          loading={archiveState.loading || restoreState.loading}
+          onConfirm={onConfirmArchiveToggle}
+          onCancel={() => setPendingArchive(null)}
+        />
       </div>
     </PhoneFrame>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@apollo/client";
 import { IconGear, IconPlus } from "@/components/icons";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
@@ -9,11 +9,12 @@ import { PhoneFrame } from "@/components/layout/phone-frame";
 import { StatusBar } from "@/components/layout/status-bar";
 import { IconButton } from "@/components/ui/icon-button";
 import { SessionCard } from "@/components/session/session-card";
+import { SessionContextSwitcher } from "@/components/session/session-context-switcher";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
 import { Button } from "@/components/ui/button";
 import { SESSIONS_QUERY } from "@/lib/graphql/operations";
 import { getGraphqlErrorMessage } from "@/lib/error-messages";
-import { getDefaultSessionId, getToken } from "@/lib/token";
+import { useActiveSession } from "@/lib/use-active-session";
 
 type SessionNode = {
   readonly id: string;
@@ -52,9 +53,13 @@ function formatDateLabel(isoDate: string): string {
 
 export default function SessionsPage() {
   const [filterKey, setFilterKey] = useState<FilterKey>("ALL");
-  const activeSessionId = getDefaultSessionId();
-  const activeToken = activeSessionId ? getToken(activeSessionId) : null;
-  const hasAuth = Boolean(activeSessionId && activeToken);
+  const {
+    activeSessionId,
+    hasAuth,
+    storedSessions,
+    selectSession,
+    removeSession,
+  } = useActiveSession();
 
   const variables = useMemo(
     () => ({
@@ -68,11 +73,16 @@ export default function SessionsPage() {
     [filterKey],
   );
 
-  const { data, loading, error, fetchMore } = useQuery<SessionsQueryData>(SESSIONS_QUERY, {
+  const { data, loading, error, fetchMore, refetch } = useQuery<SessionsQueryData>(SESSIONS_QUERY, {
     variables,
     skip: !hasAuth,
     notifyOnNetworkStatusChange: true,
   });
+
+  useEffect(() => {
+    if (!hasAuth) return;
+    void refetch();
+  }, [activeSessionId, hasAuth, refetch]);
 
   const edges = data?.sessions.edges ?? [];
   const pageInfo = data?.sessions.pageInfo;
@@ -107,6 +117,12 @@ export default function SessionsPage() {
               </button>
             ))}
           </div>
+          <SessionContextSwitcher
+            activeSessionId={activeSessionId}
+            sessions={storedSessions}
+            onSelect={selectSession}
+            onRemove={removeSession}
+          />
         </div>
 
         <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[10px]">
