@@ -1,5 +1,11 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsDate,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { RelayMutationInput } from '@libs/relay';
 import { ContentType } from '@domains/session/domain/enums/content-type.enum';
 import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
@@ -17,5 +23,6 @@ export class CreateSessionInput extends RelayMutationInput {
   title?: string;
 
   @Field(() => DateTimeScalar, { nullable: false })
+  @IsDate()
   startsAt!: Date;
 }

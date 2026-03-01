@@ -61,6 +61,17 @@ enum AttendanceStatus {
   UNDECIDED
 }
 
+type AuthContext {
+  role: AuthRole!
+  sessionId: ID!
+}
+
+"""Authenticated role for current session token"""
+enum AuthRole {
+  ADMIN
+  EDITOR
+}
+
 input BulkSetTeamsInput {
   assignments: [TeamAssignmentInput!]!
   clientMutationId: String
@@ -429,6 +440,7 @@ input PresignedUploadFileInput {
 }
 
 type Query {
+  authContext: AuthContext!
   friends(includeArchived: Boolean = false, query: String): [Friend!]!
 
   """Relay node query"""

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/graphql';
 import { assertGlobalIdType } from '@libs/relay';
 import { CurrentAuth } from '@auth/decorators/current-auth.decorator';
+import { Public } from '@auth/decorators/public.decorator';
 import { RequireAdmin } from '@auth/decorators/require-admin.decorator';
 import { AuthContext } from '@auth/types/auth-context.type';
 import { ForbiddenException } from '@shared/exceptions/forbidden.exception';
@@ -81,6 +82,7 @@ export class SessionMutationResolver {
     private readonly getCommentUseCase: GetCommentUseCase,
   ) {}
 
+  @Public()
   @Mutation(() => CreateSessionPayload, { nullable: false })
   async createSession(
     @Args('input', { type: () => CreateSessionInput })

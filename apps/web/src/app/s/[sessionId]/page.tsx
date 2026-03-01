@@ -10,7 +10,15 @@ import { Button } from "@/components/ui/button";
 import { SESSION_QUERY } from "@/lib/graphql/operations";
 import { getGraphqlErrorMessage } from "@/lib/error-messages";
 import { tryDecodeSessionId } from "@/lib/relay-id";
-import { getToken, saveShareToken, saveToken, setActiveSessionId } from "@/lib/token";
+import {
+  clearActiveSessionId,
+  getActiveSessionId,
+  getToken,
+  removeToken,
+  saveShareToken,
+  saveToken,
+  setActiveSessionId,
+} from "@/lib/token";
 
 type SessionStatus = "SCHEDULED" | "CONFIRMED" | "DONE";
 
@@ -47,9 +55,7 @@ export default function SessionEntryPage() {
     if (!localSessionId) return;
     const tokenFromQuery = searchParams.get("t")?.trim();
     if (tokenFromQuery) {
-      if (!getToken(localSessionId)) {
-        saveToken(localSessionId, tokenFromQuery);
-      }
+      saveToken(localSessionId, tokenFromQuery);
       saveShareToken(localSessionId, tokenFromQuery);
       setActiveSessionId(localSessionId);
     }
@@ -67,6 +73,22 @@ export default function SessionEntryPage() {
     skip: !shouldFetchSession,
     fetchPolicy: "network-only",
   });
+
+  useEffect(() => {
+    if (!localSessionId || !error) return;
+
+    const code = error.graphQLErrors[0]?.extensions?.code;
+    if (
+      code === "INVALID_TOKEN" ||
+      code === "SESSION_NOT_FOUND" ||
+      code === "UNAUTHORIZED"
+    ) {
+      removeToken(localSessionId);
+      if (getActiveSessionId() === localSessionId) {
+        clearActiveSessionId();
+      }
+    }
+  }, [error, localSessionId]);
 
   useEffect(() => {
     if (!localSessionId) return;
@@ -115,6 +137,29 @@ export default function SessionEntryPage() {
 
   if (error) {
     const errorCode = error.graphQLErrors[0]?.extensions?.code;
+
+    if (
+      errorCode === "INVALID_TOKEN" ||
+      errorCode === "SESSION_NOT_FOUND" ||
+      errorCode === "UNAUTHORIZED"
+    ) {
+      return (
+        <PhoneFrame>
+          <div className="flex min-h-screen flex-col">
+            <StatusBar />
+            <div className="flex flex-1 items-center px-[16px]">
+              <TokenRequiredState
+                title="다시 초대 링크가 필요합니다"
+                description={getGraphqlErrorMessage(
+                  typeof errorCode === "string" ? errorCode : undefined,
+                )}
+              />
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+    }
+
     return (
       <PhoneFrame>
         <div className="flex min-h-screen flex-col">

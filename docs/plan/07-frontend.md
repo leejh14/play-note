@@ -19,7 +19,7 @@
 ## 1-A. Phase 07 구현 결정 (확정값)
 
 - 인증 정책은 API 현재 상태와 동일하게 유지:
-  - `sessionPreview`만 공개
+  - 공개 API: `sessionPreview`(query), `createSession`(mutation)
   - `/sessions`, `/stats`, `/friends`, `/s/{id}/setup`, `/s/{id}/detail`는 토큰 필요
 - 세션 ID 정책:
   - URL 경로: Global ID (`/s/{sessionGlobalId}`)
@@ -70,13 +70,13 @@ src/app/
 
 | 경로 | 역할 | 토큰 | 탭 바 |
 |------|------|------|-------|
-| `/sessions` | 세션 목록 (홈) | 불필요 (목록은 전체 공개) | O |
-| `/sessions/new` | 세션 생성 | 불필요 | X (뒤로가기) |
+| `/sessions` | 세션 목록 (홈) | 필요 (active session token) | O |
+| `/sessions/new` | 세션 생성 | 불필요 (`createSession` 공개) | X (뒤로가기) |
 | `/s/{id}` | 진입점: 토큰 저장 → 상태별 리다이렉트 | URL 파라미터 `?t=` | X |
 | `/s/{id}/setup` | 셋업 (참가/팀/라인) | 필요 | X (뒤로가기) |
 | `/s/{id}/detail` | 상세 (매치/첨부/댓글) | 필요 | X (뒤로가기) |
-| `/stats` | 통계 개요 | 불필요 | O |
-| `/stats/{friendId}` | 친구별 상세 통계 | 불필요 | X (뒤로가기) |
+| `/stats` | 통계 개요 | 필요 (active session token) | O |
+| `/stats/{friendId}` | 친구별 상세 통계 | 필요 (active session token) | X (뒤로가기) |
 | `/friends` | 친구 관리 | 필요 (admin) | O |
 
 ---
@@ -106,11 +106,15 @@ function removeToken(sessionId: string) {
 
 ```
 1. URL에서 ?t= 파라미터 추출
-2. ?t= 있으면 → localStorage에 저장
+2. ?t= 있으면 → localStorage token/share-token 최신값으로 저장(기존 값 덮어쓰기)
 3. sessionId로 세션 상태 조회 (GraphQL)
 4. status에 따라 라우팅:
    - scheduled → /s/{id}/setup
    - confirmed / done → /s/{id}/detail
+5. `INVALID_TOKEN | SESSION_NOT_FOUND | UNAUTHORIZED` 발생 시:
+   - `playnote:session:{id}:token`, `share-token` 제거
+   - `playnote:active-session-id`가 해당 세션이면 제거
+   - 재진입 안내 UI 노출
 ```
 
 ### Apollo Client 헤더 주입

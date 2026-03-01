@@ -18,9 +18,10 @@
   - FUTSAL: session 사진 업로드(`SESSION + FUTSAL_PHOTO`)
   - 상세 화면에서 session/match attachment 통합 표시
 
-- [~] **온보딩/권한 정책 최종 정렬**
-  - `createSession` 무토큰 허용 여부를 API/문서/UX와 완전 일치시켜야 함
-  - 무토큰 사용자 기본 진입 플로우(링크 유도 vs 생성 허용) 확정 필요
+- [x] **온보딩/권한 정책 최종 정렬**
+  - [x] `createSession` 무토큰 허용 (`@Public`) 적용 + 테스트 추가
+  - [x] 무토큰 사용자 기본 진입 플로우(링크 유도 vs 생성 허용) 문구/화면 통일
+  - [x] `/s/{id}?t=` 재진입 시 토큰 최신값으로 갱신(기존 값 덮어쓰기)
 - [~] **세션 목록 정책 정렬**
   - active session 중심 조회 정책이 제품 요구와 맞는지 검증
   - 필요 시 다중 세션 스위처 고도화(라벨/최근순/만료정리)
@@ -40,7 +41,8 @@
 ## 3) 에러/권한 UX 정교화
 
 - [ ] `UNAUTHORIZED | INVALID_TOKEN | SESSION_NOT_FOUND | FORBIDDEN` 코드별 UX 카피 최종 확정
-- [ ] 토큰 무효/세션 삭제 시 localStorage 정리 정책 일관화
+- [x] 토큰 무효/세션 삭제 시 localStorage 정리 정책 일관화
+  - `INVALID_TOKEN | SESSION_NOT_FOUND | UNAUTHORIZED` 시 token/share-token/active-session 정리
 - [ ] admin/editor 경계 UI를 전 화면에서 일관되게 재검증
 
 ---
@@ -51,6 +53,8 @@
   - `lib/token.ts`
   - `lib/relay-id.ts`
   - error code → 사용자 메시지 매핑
+- [x] API E2E 보강
+  - `createSession` 무헤더 호출 허용 검증(`session-create-public.e2e-spec.ts`)
 - [ ] Web E2E 테스트(Playwright 권장)
   - `/s/{id}?t=` 진입/저장/리다이렉트
   - setup → confirm → detail
@@ -74,6 +78,6 @@
 
 ## 6) 문서 동기화
 
-- [ ] `docs/plan/07-frontend.md`의 페이지별 토큰 정책 표를 현재 구현과 일치시킴
-- [ ] `docs/시스템디자인.md`에 세션 컨텍스트 스위처/업로드 타겟 정책 반영
+- [x] `docs/plan/07-frontend.md`의 페이지별 토큰 정책 표를 현재 구현과 일치시킴
+- [x] `docs/시스템디자인.md`에 세션 컨텍스트 스위처/업로드 타겟 정책 반영
 - [ ] 후속 Plan 수립 전에 본 TODO 우선순위 재정렬 (P0/P1/P2)
