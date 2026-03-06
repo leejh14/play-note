@@ -42,6 +42,7 @@ function MatchDetailContent() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sessionId = params.sessionId;
   const token = searchParams.get("t");
+  const selectedMatchId = searchParams.get("matchId");
 
   useEffect(() => {
     let cancelled = false;
@@ -65,14 +66,16 @@ function MatchDetailContent() {
   }, [sessionId, token]);
 
   useEffect(() => {
-    const match = session?.matches[0];
+    const match =
+      session?.matches.find((item) => item.id === selectedMatchId) ??
+      session?.matches[0];
     if (!match) {
       return;
     }
 
     setTeamASideSelection(match.teamASide);
     setWinnerSideSelection(match.winnerSide);
-  }, [session]);
+  }, [selectedMatchId, session]);
 
   if (session === undefined) {
     return (
@@ -90,7 +93,9 @@ function MatchDetailContent() {
     );
   }
 
-  const match = session.matches[0];
+  const match =
+    session.matches.find((item) => item.id === selectedMatchId) ??
+    session.matches[0];
   const canEdit = Boolean(getSessionToken(session.id));
 
   const handleCreateFirstMatch = async () => {
@@ -100,9 +105,10 @@ function MatchDetailContent() {
 
     setIsCreatingMatch(true);
     try {
-      await createMatchFromPreset(session.id);
+      const { matchId } = await createMatchFromPreset(session.id);
       const updatedSession = await fetchSessionById(session.id);
       setSession(updatedSession);
+      router.replace(`/s/${session.id}/detail?matchId=${matchId}`);
     } finally {
       setIsCreatingMatch(false);
     }

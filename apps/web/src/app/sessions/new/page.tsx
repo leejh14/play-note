@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Gamepad2, CircleDot, Calendar, Clock } from "lucide-react";
+import { ArrowLeft, Gamepad2, CircleDot, Calendar, Clock } from "lucide-react";
 import { createSession, type ContentType } from "@/lib/playnote";
 
 export default function NewSessionPage() {
@@ -37,10 +37,14 @@ export default function NewSessionPage() {
   return (
     <div className="flex h-full flex-col bg-[var(--white)]">
       {/* Header */}
-      <div className="flex w-full items-center justify-center px-[24px] py-[16px]">
+      <div className="flex w-full items-center justify-between px-[24px] py-[16px]">
+        <button type="button" onClick={() => router.back()}>
+          <ArrowLeft size={24} className="text-[var(--black)]" />
+        </button>
         <h1 className="text-[18px] font-bold text-[var(--black)]">
           New Session
         </h1>
+        <div className="w-[24px]" />
       </div>
 
       {/* Form Content */}

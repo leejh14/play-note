@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Calendar,
   Edit,
+  House,
   Plus,
   Upload,
   ImageIcon,
@@ -92,17 +93,10 @@ function SessionDetailContent() {
     );
   }
 
-  const match = session.matches[0];
   const canEdit = Boolean(getSessionToken(session.id));
   const firstComment = session.comments[0];
   const attendingCount = session.members.filter((member) => member.attendance === "yes").length;
   const undecidedCount = session.members.filter((member) => member.attendance !== "yes").length;
-  const winningLabel =
-    !match || !match.winnerTeam
-      ? "Winner not decided"
-      : match.winnerTeam === "A"
-        ? "Team A"
-        : "Team B";
 
   const handleCreateMatch = async () => {
     if (isCreatingMatch || !canEdit) {
@@ -111,8 +105,8 @@ function SessionDetailContent() {
 
     setIsCreatingMatch(true);
     try {
-      await createMatchFromPreset(session.id);
-      router.push(`/s/${session.id}/detail`);
+      const { matchId } = await createMatchFromPreset(session.id);
+      router.push(`/s/${session.id}/detail?matchId=${matchId}`);
     } finally {
       setIsCreatingMatch(false);
     }
@@ -126,7 +120,14 @@ function SessionDetailContent() {
           <button onClick={() => router.back()}>
             <ArrowLeft size={24} className="text-[var(--black)]" />
           </button>
-          <div className="w-[20px]" />
+          <button
+            type="button"
+            onClick={() => router.push("/sessions")}
+            className="flex items-center justify-center"
+            aria-label="Go to sessions"
+          >
+            <House size={18} className="text-[var(--primary)]" />
+          </button>
         </div>
         <div className="flex items-center gap-[8px]">
           <span className="rounded-[var(--radius-full)] bg-[var(--primary-light)] px-[10px] py-[3px] text-[11px] font-semibold text-[var(--primary)]">
@@ -223,42 +224,60 @@ function SessionDetailContent() {
           </button>
         </div>
 
-        {match && (
-          <div className="flex flex-col gap-[10px] rounded-[var(--radius-md)] bg-[var(--gray-100)] p-[16px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[15px] font-bold text-[var(--black)]">
-                Match #{match.number}
-              </span>
-              <span className="text-[11px] font-semibold text-[var(--primary)]">
-                {match.status === "completed" ? "Completed" : "In Progress"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="font-medium text-[var(--primary)]">
-                {winningLabel}
-              </span>
-              <span className="font-bold text-[var(--primary)]">
-                {match.winnerTeam ? "WIN" : "PENDING"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-[var(--gray-700)]">End Screen</span>
-              <span className="text-[var(--primary)]">
-                {match.ocrDone ? "OCR Done" : "OCR Pending"}
-              </span>
-            </div>
-            {match.endScreenFile && (
-              <span className="text-[12px] text-[var(--gray-500)]">
-                📎 {match.endScreenFile}
-              </span>
-            )}
-            <Link
-              href={`/s/${session.id}/detail`}
-              className="text-right text-[13px] font-medium text-[var(--gray-500)]"
-            >
-              Show detail →
-            </Link>
-          </div>
+        {session.matches.length > 0 ? (
+          session.matches.map((match) => {
+            const winningLabel =
+              !match.winnerTeam
+                ? "Winner not decided"
+                : match.winnerTeam === "A"
+                  ? "Team A"
+                  : "Team B";
+
+            return (
+              <div
+                key={match.id}
+                className="flex flex-col gap-[10px] rounded-[var(--radius-md)] bg-[var(--gray-100)] p-[16px]"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] font-bold text-[var(--black)]">
+                    Match #{match.number}
+                  </span>
+                  <span className="text-[11px] font-semibold text-[var(--primary)]">
+                    {match.status === "completed" ? "Completed" : "In Progress"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="font-medium text-[var(--primary)]">
+                    {winningLabel}
+                  </span>
+                  <span className="font-bold text-[var(--primary)]">
+                    {match.winnerTeam ? "WIN" : "PENDING"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-[var(--gray-700)]">End Screen</span>
+                  <span className="text-[var(--primary)]">
+                    {match.ocrDone ? "OCR Done" : "OCR Pending"}
+                  </span>
+                </div>
+                {match.endScreenFile && (
+                  <span className="text-[12px] text-[var(--gray-500)]">
+                    📎 {match.endScreenFile}
+                  </span>
+                )}
+                <Link
+                  href={`/s/${session.id}/detail?matchId=${match.id}`}
+                  className="text-right text-[13px] font-medium text-[var(--gray-500)]"
+                >
+                  Show detail →
+                </Link>
+              </div>
+            );
+          })
+        ) : (
+          <p className="text-[13px] text-[var(--gray-500)]">
+            No matches yet
+          </p>
         )}
       </div>
 
