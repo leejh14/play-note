@@ -12,6 +12,8 @@ node_modules/
 dist/
 .next/
 out/
+.next.bak.setup-dropdown/
+*.tsbuildinfo
 
 # IDE
 .idea/

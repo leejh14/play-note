@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Share2 } from "lucide-react";
 import {
   confirmSessionSetup,
   fetchSessionById,
+  getSessionToken,
   type AttendanceStatus,
   type Lane,
   type Session,
@@ -23,6 +24,11 @@ interface SetupMember {
   lane?: Lane;
 }
 
+interface DropdownOption {
+  value: string;
+  label: string;
+}
+
 const lanes: Lane[] = ["TOP", "JG", "MID", "ADC", "SUP"];
 
 export default function SessionSetupPage() {
@@ -30,6 +36,7 @@ export default function SessionSetupPage() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const sessionId = params.sessionId;
 
   useEffect(() => {
@@ -83,6 +90,35 @@ export default function SessionSetupPage() {
   const yesCount = members.filter((m) => m.attendance === "yes").length;
   const teamA = members.filter((m) => m.team === "A");
   const teamB = members.filter((m) => m.team === "B");
+  const availableMembers = members.filter(
+    (member) =>
+      member.attendance === "yes" &&
+      !member.team,
+  );
+  const teamOptions: DropdownOption[] = availableMembers.map((member) => ({
+    value: member.id,
+    label: member.name,
+  }));
+
+  const handleShare = async () => {
+    const token = getSessionToken(session.id);
+    const baseUrl = window.location.origin;
+    const shareUrl = new URL(`/s/${session.id}/setup`, baseUrl);
+
+    if (token) {
+      shareUrl.searchParams.set("t", token);
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl.toString());
+      setShareCopied(true);
+      window.setTimeout(() => {
+        setShareCopied(false);
+      }, 2000);
+    } catch {
+      window.prompt("Copy this setup link", shareUrl.toString());
+    }
+  };
 
   const handleAttendanceChange = async (
     member: SetupMember,
@@ -105,14 +141,12 @@ export default function SessionSetupPage() {
     }
   };
 
-  const handleAddToTeam = async (team: Team) => {
-    if (isSaving) {
+  const handleAssignToTeam = async (team: Team, friendId: string) => {
+    if (isSaving || !friendId) {
       return;
     }
 
-    const candidate =
-      members.find((member) => member.attendance === "yes" && !member.team) ??
-      members.find((member) => member.attendance === "maybe" && !member.team);
+    const candidate = availableMembers.find((member) => member.id === friendId);
 
     if (!candidate) {
       return;
@@ -132,17 +166,18 @@ export default function SessionSetupPage() {
     }
   };
 
-  const handleLaneCycle = async (member: SetupMember) => {
+  const handleLaneChange = async (
+    member: SetupMember,
+    lane: Lane,
+  ) => {
     if (
       isSaving ||
       session.contentType !== "lol" ||
-      !member.team
+      !member.team ||
+      member.lane === lane
     ) {
       return;
     }
-
-    const currentIndex = member.lane ? lanes.indexOf(member.lane) : -1;
-    const nextLane = lanes[(currentIndex + 1) % lanes.length];
 
     setIsSaving(true);
     try {
@@ -150,7 +185,7 @@ export default function SessionSetupPage() {
         sessionId: session.id,
         friendId: member.id,
         team: member.team,
-        lane: nextLane,
+        lane,
       });
       setSession(updatedSession);
     } finally {
@@ -187,7 +222,18 @@ export default function SessionSetupPage() {
         <h1 className="text-[18px] font-bold text-[var(--black)]">
           Session Setup
         </h1>
-        <div className="w-[24px]" />
+        <button
+          type="button"
+          onClick={() => void handleShare()}
+          className="flex w-[24px] items-center justify-center"
+          aria-label={shareCopied ? "Setup link copied" : "Share setup link"}
+        >
+          {shareCopied ? (
+            <Check size={20} className="text-[var(--primary)]" />
+          ) : (
+            <Share2 size={20} className="text-[var(--gray-700)]" />
+          )}
+        </button>
       </div>
 
       {/* Info Bar */}
@@ -299,13 +345,15 @@ export default function SessionSetupPage() {
                 </span>
               </div>
             ))}
-            <button
-              onClick={() => void handleAddToTeam("A")}
-              disabled={isSaving}
-              className="flex h-[36px] items-center justify-center rounded-[var(--radius-sm)] border border-[var(--primary)] text-[12px] font-medium text-[var(--primary)]"
-            >
-              + Add
-            </button>
+            <DropdownMenu
+              value=""
+              placeholder={teamOptions.length > 0 ? "+ Add" : "No members"}
+              options={teamOptions}
+              onChange={(friendId) => void handleAssignToTeam("A", friendId)}
+              disabled={isSaving || teamOptions.length === 0}
+              buttonClassName="h-[36px] w-full rounded-[var(--radius-sm)] border border-[var(--primary)] bg-[var(--white)] px-[10px] text-[12px] font-medium text-[var(--primary)]"
+              iconClassName="text-[var(--primary)]"
+            />
           </div>
 
           {/* Team B */}
@@ -326,13 +374,15 @@ export default function SessionSetupPage() {
                 </span>
               </div>
             ))}
-            <button
-              onClick={() => void handleAddToTeam("B")}
-              disabled={isSaving}
-              className="flex h-[36px] items-center justify-center rounded-[var(--radius-sm)] border border-[var(--red)] text-[12px] font-medium text-[var(--red)]"
-            >
-              + Add
-            </button>
+            <DropdownMenu
+              value=""
+              placeholder={teamOptions.length > 0 ? "+ Add" : "No members"}
+              options={teamOptions}
+              onChange={(friendId) => void handleAssignToTeam("B", friendId)}
+              disabled={isSaving || teamOptions.length === 0}
+              buttonClassName="h-[36px] w-full rounded-[var(--radius-sm)] border border-[var(--red)] bg-[var(--white)] px-[10px] text-[12px] font-medium text-[var(--red)]"
+              iconClassName="text-[var(--red)]"
+            />
           </div>
         </div>
       </div>
@@ -373,16 +423,22 @@ export default function SessionSetupPage() {
                   {m.name}
                 </span>
               </div>
-              <button
-                onClick={() => void handleLaneCycle(m)}
+              <DropdownMenu
+                value={m.lane ?? "UNKNOWN"}
+                placeholder="—"
+                options={[
+                  { value: "UNKNOWN", label: "—" },
+                  ...lanes.map((lane) => ({
+                    value: lane,
+                    label: lane,
+                  })),
+                ]}
+                onChange={(lane) => void handleLaneChange(m, lane as Lane)}
                 disabled={isSaving || session.contentType !== "lol" || !m.team}
-                className="flex h-[32px] w-[90px] items-center justify-between rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] px-[10px]"
-              >
-                <span className="text-[13px] font-semibold text-[var(--black)]">
-                  {m.lane ?? "—"}
-                </span>
-                <ChevronDown size={14} className="text-[var(--gray-500)]" />
-              </button>
+                buttonClassName="h-[32px] w-[90px] rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] px-[10px] text-[13px] font-semibold text-[var(--black)]"
+                iconClassName="text-[var(--gray-500)]"
+                menuClassName="w-[90px]"
+              />
             </div>
           ))}
         </div>
@@ -410,4 +466,85 @@ function buildInitials(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function DropdownMenu(props: {
+  value: string;
+  placeholder: string;
+  options: DropdownOption[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  buttonClassName: string;
+  iconClassName: string;
+  menuClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [open]);
+
+  const selectedLabel =
+    props.options.find((option) => option.value === props.value)?.label ??
+    props.placeholder;
+
+  return (
+    <div ref={rootRef} className={`relative ${props.menuClassName ?? "w-full"}`}>
+      <button
+        type="button"
+        onClick={() => {
+          if (props.disabled || props.options.length === 0) {
+            return;
+          }
+
+          setOpen((current) => !current);
+        }}
+        disabled={props.disabled}
+        className={`flex items-center justify-between pr-[28px] text-left disabled:text-[var(--gray-500)] ${props.buttonClassName}`}
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDown
+          size={14}
+          className={`pointer-events-none absolute top-1/2 right-[10px] -translate-y-1/2 transition-transform ${props.iconClassName} ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && props.options.length > 0 && !props.disabled && (
+        <div className="absolute top-[calc(100%+6px)] left-0 z-20 max-h-[220px] w-full overflow-auto rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] py-[4px] shadow-lg">
+          {props.options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                props.onChange(option.value);
+              }}
+              className="flex w-full items-center px-[10px] py-[8px] text-left text-[13px] font-medium text-[var(--black)] hover:bg-[var(--gray-100)]"
+            >
+              <span className="truncate">{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

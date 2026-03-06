@@ -5,7 +5,6 @@ import { useRouter, useParams } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
-  Share2,
   Calendar,
   Edit,
   Plus,
@@ -113,9 +112,7 @@ export default function SessionDetailPage() {
           <button onClick={() => router.back()}>
             <ArrowLeft size={24} className="text-[var(--black)]" />
           </button>
-          <button>
-            <Share2 size={20} className="text-[var(--gray-700)]" />
-          </button>
+          <div className="w-[20px]" />
         </div>
         <div className="flex items-center gap-[8px]">
           <span className="rounded-[var(--radius-full)] bg-[var(--primary-light)] px-[10px] py-[3px] text-[11px] font-semibold text-[var(--primary)]">
