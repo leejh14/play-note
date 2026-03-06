@@ -95,6 +95,26 @@ const SESSION_QUERY = `
   }
 `;
 
+const PUBLIC_SESSION_QUERY = `
+  query PublicSessionDetail($sessionId: ID!) {
+    publicSession(sessionId: $sessionId) {
+      ${SESSION_FIELDS}
+    }
+  }
+`;
+
+const PUBLIC_SESSIONS_QUERY = `
+  query PublicSessions {
+    publicSessions(first: 50, orderBy: [{ field: STARTS_AT, direction: DESC }]) {
+      edges {
+        node {
+          ${SESSION_FIELDS}
+        }
+      }
+    }
+  }
+`;
+
 const FRIENDS_QUERY = `
   query Friends($includeArchived: Boolean!, $query: String) {
     friends(includeArchived: $includeArchived, query: $query) {
@@ -251,68 +271,82 @@ type GraphQLErrorPayload = {
 };
 
 type SessionQueryData = {
-  session: {
+  session: SessionGraphData;
+};
+
+type SessionGraphData = {
+  id: string;
+  title: string | null;
+  contentType: GqlContentType;
+  status: GqlSessionStatus;
+  startsAt: string;
+  attendingCount: number;
+  matchCount: number;
+  attendances: Array<{
     id: string;
-    title: string | null;
-    contentType: GqlContentType;
-    status: GqlSessionStatus;
-    startsAt: string;
-    attendingCount: number;
-    matchCount: number;
-    attendances: Array<{
+    status: GqlAttendanceStatus;
+    friend: {
       id: string;
-      status: GqlAttendanceStatus;
-      friend: {
-        id: string;
-        displayName: string;
-      };
-    }>;
-    teamPresetMembers: Array<{
+      displayName: string;
+    };
+  }>;
+  teamPresetMembers: Array<{
+    id: string;
+    team: GqlTeam;
+    lane: GqlLane;
+    friend: {
+      id: string;
+      displayName: string;
+    };
+  }>;
+  matches: Array<{
+    id: string;
+    matchNo: number;
+    status: GqlMatchStatus;
+    winnerSide: GqlSide;
+    teamASide: GqlSide;
+    isConfirmed: boolean;
+    teamMembers: Array<{
       id: string;
       team: GqlTeam;
       lane: GqlLane;
+      champion: string | null;
       friend: {
         id: string;
         displayName: string;
       };
-    }>;
-    matches: Array<{
-      id: string;
-      matchNo: number;
-      status: GqlMatchStatus;
-      winnerSide: GqlSide;
-      teamASide: GqlSide;
-      isConfirmed: boolean;
-      teamMembers: Array<{
-        id: string;
-        team: GqlTeam;
-        lane: GqlLane;
-        champion: string | null;
-        friend: {
-          id: string;
-          displayName: string;
-        };
-      }>;
-      attachments: Array<{
-        id: string;
-        type: GqlAttachmentType;
-        originalFileName: string | null;
-      }>;
-      extractionResults: Array<{
-        id: string;
-        status: "PENDING" | "DONE" | "FAILED";
-      }>;
     }>;
     attachments: Array<{
       id: string;
       type: GqlAttachmentType;
       originalFileName: string | null;
     }>;
-    comments: Array<{
+    extractionResults: Array<{
       id: string;
-      body: string;
-      displayName: string | null;
-      createdAt: string;
+      status: "PENDING" | "DONE" | "FAILED";
+    }>;
+  }>;
+  attachments: Array<{
+    id: string;
+    type: GqlAttachmentType;
+    originalFileName: string | null;
+  }>;
+  comments: Array<{
+    id: string;
+    body: string;
+    displayName: string | null;
+    createdAt: string;
+  }>;
+};
+
+type PublicSessionQueryData = {
+  publicSession: SessionGraphData;
+};
+
+type PublicSessionsQueryData = {
+  publicSessions: {
+    edges: Array<{
+      node: SessionGraphData;
     }>;
   };
 };
@@ -607,6 +641,18 @@ export async function fetchStoredSessions(): Promise<Session[]> {
   return sessions.filter((session): session is Session => session !== null);
 }
 
+export async function fetchPublicSessions(): Promise<Session[]> {
+  try {
+    const data = await graphqlRequest<PublicSessionsQueryData>(
+      PUBLIC_SESSIONS_QUERY,
+    );
+
+    return data.publicSessions.edges.map((edge) => mapSession(edge.node));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchSessionById(sessionId: string): Promise<Session | null> {
   const localSessionId = ensureLocalId("Session", sessionId);
   const token = getSessionToken(localSessionId);
@@ -619,6 +665,21 @@ export async function fetchSessionById(sessionId: string): Promise<Session | nul
     localSessionId,
     token,
   });
+}
+
+export async function fetchPublicSessionById(sessionId: string): Promise<Session | null> {
+  try {
+    const data = await graphqlRequest<PublicSessionQueryData, { sessionId: string }>(
+      PUBLIC_SESSION_QUERY,
+      {
+        sessionId: ensureGlobalId("Session", sessionId),
+      },
+    );
+
+    return mapSession(data.publicSession);
+  } catch {
+    return null;
+  }
 }
 
 export async function createSession(input: {
@@ -1066,7 +1127,7 @@ async function graphqlRequest<TData, TVariables = undefined>(
   return payload.data;
 }
 
-function mapSession(session: SessionQueryData["session"]): Session {
+function mapSession(session: SessionGraphData): Session {
   const startsAt = new Date(session.startsAt);
   const members = mergeSessionMembers(session.attendances, session.teamPresetMembers);
   const teamA = members.filter((member) => member.team === "A").map((member) => member.name);
@@ -1097,8 +1158,8 @@ function mapSession(session: SessionQueryData["session"]): Session {
 }
 
 function mergeSessionMembers(
-  attendances: SessionQueryData["session"]["attendances"],
-  teamPresetMembers: SessionQueryData["session"]["teamPresetMembers"],
+  attendances: SessionGraphData["attendances"],
+  teamPresetMembers: SessionGraphData["teamPresetMembers"],
 ): SessionMember[] {
   const teamAssignments = new Map(
     teamPresetMembers.map((member) => [
@@ -1123,7 +1184,7 @@ function mergeSessionMembers(
   });
 }
 
-function mapMatch(match: SessionQueryData["session"]["matches"][number]): MatchResult {
+function mapMatch(match: SessionGraphData["matches"][number]): MatchResult {
   const resultAttachment = match.attachments.find(
     (attachment) => attachment.type === "LOL_RESULT_SCREEN",
   );

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { NotebookPen, Settings, Plus } from "lucide-react";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { SessionCard } from "@/components/session/session-card";
-import { fetchStoredSessions, type ContentType, type Session } from "@/lib/playnote";
+import { fetchPublicSessions, type ContentType, type Session } from "@/lib/playnote";
 
 type FilterTab = "all" | ContentType;
 
@@ -23,7 +23,7 @@ export default function SessionListPage() {
     let cancelled = false;
 
     const loadSessions = async () => {
-      const nextSessions = await fetchStoredSessions();
+      const nextSessions = await fetchPublicSessions();
       if (!cancelled) {
         setSessions(nextSessions);
       }

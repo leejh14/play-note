@@ -16,7 +16,8 @@ import {
 import Link from "next/link";
 import {
   createMatchFromPreset,
-  fetchSessionById,
+  fetchPublicSessionById,
+  getSessionToken,
   saveSessionToken,
   type Session,
 } from "@/lib/playnote";
@@ -49,7 +50,7 @@ export default function SessionDetailPage() {
         saveSessionToken(sessionId, token);
       }
 
-      const nextSession = await fetchSessionById(sessionId);
+      const nextSession = await fetchPublicSessionById(sessionId);
       if (!cancelled) {
         setSession(nextSession);
       }
@@ -79,6 +80,7 @@ export default function SessionDetailPage() {
   }
 
   const match = session.matches[0];
+  const canEdit = Boolean(getSessionToken(session.id));
   const firstComment = session.comments[0];
   const attendingCount = session.members.filter((member) => member.attendance === "yes").length;
   const undecidedCount = session.members.filter((member) => member.attendance !== "yes").length;
@@ -90,7 +92,7 @@ export default function SessionDetailPage() {
         : "Team B";
 
   const handleCreateMatch = async () => {
-    if (isCreatingMatch) {
+    if (isCreatingMatch || !canEdit) {
       return;
     }
 
@@ -140,7 +142,18 @@ export default function SessionDetailPage() {
           <span className="text-[16px] font-bold text-[var(--black)]">
             Setup
           </span>
-          <button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!canEdit) {
+                return;
+              }
+
+              router.push(`/s/${session.id}/setup`);
+            }}
+            disabled={!canEdit}
+            className="disabled:opacity-50"
+          >
             <Edit size={16} className="text-[var(--gray-500)]" />
           </button>
         </div>
@@ -189,8 +202,8 @@ export default function SessionDetailPage() {
           </span>
           <button
             onClick={() => void handleCreateMatch()}
-            disabled={isCreatingMatch}
-            className="flex items-center gap-[4px] rounded-[var(--radius-full)] border border-[var(--primary)] px-[12px] py-[6px]"
+            disabled={!canEdit || isCreatingMatch}
+            className="flex items-center gap-[4px] rounded-[var(--radius-full)] border border-[var(--primary)] px-[12px] py-[6px] disabled:opacity-50"
           >
             <Plus size={14} className="text-[var(--primary)]" />
             <span className="text-[12px] font-semibold text-[var(--primary)]">
@@ -246,7 +259,11 @@ export default function SessionDetailPage() {
           <span className="text-[16px] font-bold text-[var(--black)]">
             Photos
           </span>
-          <button className="flex items-center gap-[4px]">
+          <button
+            type="button"
+            disabled={!canEdit}
+            className="flex items-center gap-[4px] disabled:opacity-50"
+          >
             <Upload size={14} className="text-[var(--primary)]" />
             <span className="text-[12px] font-semibold text-[var(--primary)]">
               Upload

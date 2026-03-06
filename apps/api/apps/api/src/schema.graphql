@@ -439,6 +439,51 @@ input PresignedUploadFileInput {
   type: AttachmentType!
 }
 
+type PublicAttachment {
+  id: ID!
+  originalFileName: String
+  type: AttachmentType!
+}
+
+type PublicMatch {
+  attachments: [PublicAttachment!]!
+  createdAt: DateTime!
+  extractionResults: [ExtractionResult!]!
+  id: ID!
+  isConfirmed: Boolean!
+  matchNo: Int!
+  status: MatchStatus!
+  teamASide: Side!
+  teamMembers: [MatchTeamMember!]!
+  winnerSide: Side!
+}
+
+type PublicSession {
+  attachments: [PublicAttachment!]!
+  attendances: [Attendance!]!
+  attendingCount: Int!
+  comments: [Comment!]!
+  contentType: ContentType!
+  createdAt: DateTime!
+  id: ID!
+  matchCount: Int!
+  matches: [PublicMatch!]!
+  startsAt: DateTime!
+  status: SessionStatus!
+  teamPresetMembers: [TeamPresetMember!]!
+  title: String
+}
+
+type PublicSessionConnection {
+  edges: [PublicSessionEdge!]!
+  pageInfo: PageInfo!
+}
+
+type PublicSessionEdge {
+  cursor: String!
+  node: PublicSession!
+}
+
 type Query {
   authContext: AuthContext!
   friends(includeArchived: Boolean = false, query: String): [Friend!]!
@@ -448,6 +493,8 @@ type Query {
 
   """Relay nodes query"""
   nodes(ids: [ID!]!): [Node]!
+  publicSession(sessionId: ID!): PublicSession!
+  publicSessions(after: String, before: String, filter: SessionFilter, first: Int, last: Int, orderBy: [SessionOrder!]): PublicSessionConnection!
   session(sessionId: ID!): Session!
   sessionPreview(sessionId: ID!): SessionPreview!
   sessions(after: String, before: String, filter: SessionFilter, first: Int, last: Int, orderBy: [SessionOrder!]): SessionConnection!

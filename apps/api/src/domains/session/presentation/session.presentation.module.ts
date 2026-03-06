@@ -5,6 +5,7 @@ import { FriendApplicationModule } from '@domains/friend/application/friend.appl
 import { MatchApplicationModule } from '@domains/match/application/match.application.module';
 import { AttachmentApplicationModule } from '@domains/attachment/application/attachment.application.module';
 import { SessionQueryResolver } from './resolvers/queries/session.query.resolver';
+import { PublicSessionQueryResolver } from './resolvers/queries/public-session.query.resolver';
 import { SessionMutationResolver } from './resolvers/mutations/session.mutation.resolver';
 import { SessionFieldResolver } from './resolvers/field-resolvers/session.field.resolver';
 import { AttendanceFieldResolver } from './resolvers/field-resolvers/attendance.field.resolver';
@@ -26,6 +27,7 @@ import '@shared/presentation/graphql/enums/lane.enum.gql';
   ],
   providers: [
     SessionQueryResolver,
+    PublicSessionQueryResolver,
     SessionMutationResolver,
     SessionFieldResolver,
     AttendanceFieldResolver,

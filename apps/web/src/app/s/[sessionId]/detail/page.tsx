@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
 import {
   createMatchFromPreset,
   confirmMatchResult,
+  fetchPublicSessionById,
   fetchSessionById,
+  getSessionToken,
+  saveSessionToken,
   type Session,
   type Side,
   uploadMatchEndScreen,
@@ -15,6 +18,7 @@ import {
 export default function MatchDetailPage() {
   const router = useRouter();
   const params = useParams<{ sessionId: string }>();
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [isCreatingMatch, setIsCreatingMatch] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -23,12 +27,17 @@ export default function MatchDetailPage() {
   const [winnerSideSelection, setWinnerSideSelection] = useState<Side>("UNKNOWN");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sessionId = params.sessionId;
+  const token = searchParams.get("t");
 
   useEffect(() => {
     let cancelled = false;
 
     const loadSession = async () => {
-      const nextSession = await fetchSessionById(sessionId);
+      if (token) {
+        saveSessionToken(sessionId, token);
+      }
+
+      const nextSession = await fetchPublicSessionById(sessionId);
       if (!cancelled) {
         setSession(nextSession);
       }
@@ -39,7 +48,7 @@ export default function MatchDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, token]);
 
   useEffect(() => {
     const match = session?.matches[0];
@@ -68,9 +77,10 @@ export default function MatchDetailPage() {
   }
 
   const match = session.matches[0];
+  const canEdit = Boolean(getSessionToken(session.id));
 
   const handleCreateFirstMatch = async () => {
-    if (isCreatingMatch) {
+    if (isCreatingMatch || !canEdit) {
       return;
     }
 
@@ -90,8 +100,8 @@ export default function MatchDetailPage() {
         <p className="text-[var(--gray-500)]">No match data available</p>
         <button
           onClick={() => void handleCreateFirstMatch()}
-          disabled={isCreatingMatch}
-          className="rounded-[var(--radius-md)] bg-[var(--primary)] px-[16px] py-[10px] text-[14px] font-semibold text-[var(--white)]"
+          disabled={!canEdit || isCreatingMatch}
+          className="rounded-[var(--radius-md)] bg-[var(--primary)] px-[16px] py-[10px] text-[14px] font-semibold text-[var(--white)] disabled:opacity-50"
         >
           Create First Match
         </button>
@@ -119,7 +129,7 @@ export default function MatchDetailPage() {
   const winnerSideBadgeClass = getSideBadgeClass(winnerSideLabel, "blue");
 
   const handleChooseImage = () => {
-    if (isUploading) {
+    if (isUploading || !canEdit) {
       return;
     }
 
@@ -129,6 +139,11 @@ export default function MatchDetailPage() {
   const handleImageSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
+      return;
+    }
+
+    if (!canEdit) {
+      event.target.value = "";
       return;
     }
 
@@ -150,6 +165,7 @@ export default function MatchDetailPage() {
 
   const handleConfirmResult = async () => {
     if (
+      !canEdit ||
       isConfirming ||
       teamASideSelection === "UNKNOWN" ||
       winnerSideSelection === "UNKNOWN"
@@ -289,8 +305,8 @@ export default function MatchDetailPage() {
         <button
           type="button"
           onClick={handleChooseImage}
-          disabled={isUploading}
-          className="flex flex-col gap-[8px] rounded-[var(--radius-md)] bg-[var(--gray-100)] p-[16px] text-left"
+          disabled={!canEdit || isUploading}
+          className="flex flex-col gap-[8px] rounded-[var(--radius-md)] bg-[var(--gray-100)] p-[16px] text-left disabled:opacity-50"
         >
           <span className="text-[13px] text-[var(--gray-700)]">
             📎{" "}
@@ -334,6 +350,7 @@ export default function MatchDetailPage() {
               onClick={() =>
                 setTeamASideSelection((current) => cycleSide(current))
               }
+              disabled={!canEdit}
               className={teamASideBadgeClass}
             >
               {teamASideLabel}
@@ -352,6 +369,7 @@ export default function MatchDetailPage() {
               onClick={() =>
                 setWinnerSideSelection((current) => cycleSide(current))
               }
+              disabled={!canEdit}
               className={winnerSideBadgeClass}
             >
               {winnerSideLabel}
@@ -362,6 +380,7 @@ export default function MatchDetailPage() {
         <button
           onClick={() => void handleConfirmResult()}
           disabled={
+            !canEdit ||
             isConfirming ||
             teamASideSelection === "UNKNOWN" ||
             winnerSideSelection === "UNKNOWN"

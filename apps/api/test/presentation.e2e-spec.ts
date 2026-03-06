@@ -25,6 +25,10 @@ import { JSONScalar } from '@shared/presentation/graphql/scalars/json.scalar';
 import { FriendQueryResolver } from '@domains/friend/presentation/resolvers/queries/friend.query.resolver';
 import { FriendMutationResolver } from '@domains/friend/presentation/resolvers/mutations/friend.mutation.resolver';
 import { SessionQueryResolver } from '@domains/session/presentation/resolvers/queries/session.query.resolver';
+import { PublicSessionQueryResolver } from '@domains/session/presentation/resolvers/queries/public-session.query.resolver';
+import { AttendanceFieldResolver } from '@domains/session/presentation/resolvers/field-resolvers/attendance.field.resolver';
+import { TeamPresetMemberFieldResolver } from '@domains/session/presentation/resolvers/field-resolvers/team-preset-member.field.resolver';
+import { MatchTeamMemberFieldResolver } from '@domains/match/presentation/resolvers/field-resolvers/match-team-member.field.resolver';
 import { MatchMutationResolver } from '@domains/match/presentation/resolvers/mutations/match.mutation.resolver';
 import { GetFriendsUseCase } from '@domains/friend/application/use-cases/queries/get-friends.use-case';
 import { GetFriendUseCase } from '@domains/friend/application/use-cases/queries/get-friend.use-case';
@@ -35,6 +39,11 @@ import { RestoreFriendUseCase } from '@domains/friend/application/use-cases/comm
 import { GetSessionsUseCase } from '@domains/session/application/use-cases/queries/get-sessions.use-case';
 import { GetSessionUseCase } from '@domains/session/application/use-cases/queries/get-session.use-case';
 import { GetSessionPreviewUseCase } from '@domains/session/application/use-cases/queries/get-session-preview.use-case';
+import { GetCommentsUseCase } from '@domains/session/application/use-cases/queries/get-comments.use-case';
+import { GetMatchesBySessionUseCase } from '@domains/match/application/use-cases/queries/get-matches-by-session.use-case';
+import { GetAttachmentsBySessionUseCase } from '@domains/attachment/application/use-cases/queries/get-attachments-by-session.use-case';
+import { GetAttachmentsByMatchUseCase } from '@domains/attachment/application/use-cases/queries/get-attachments-by-match.use-case';
+import { GetExtractionResultsByMatchUseCase } from '@domains/attachment/application/use-cases/queries/get-extraction-results-by-match.use-case';
 import { CreateMatchFromPresetUseCase } from '@domains/match/application/use-cases/commands/create-match-from-preset.use-case';
 import { SetLaneUseCase } from '@domains/match/application/use-cases/commands/set-lane.use-case';
 import { SetChampionUseCase } from '@domains/match/application/use-cases/commands/set-champion.use-case';
@@ -42,15 +51,24 @@ import { ConfirmMatchResultUseCase } from '@domains/match/application/use-cases/
 import { DeleteMatchUseCase } from '@domains/match/application/use-cases/commands/delete-match.use-case';
 import { GetMatchUseCase } from '@domains/match/application/use-cases/queries/get-match.use-case';
 import { FriendOutputDto } from '@domains/friend/application/dto/outputs/friend.output.dto';
+import { CommentOutputDto } from '@domains/session/application/dto/outputs/comment.output.dto';
 import { SessionOutputDto } from '@domains/session/application/dto/outputs/session.output.dto';
 import { SessionDetailOutputDto } from '@domains/session/application/dto/outputs/session-detail.output.dto';
 import { SessionPreviewOutputDto } from '@domains/session/application/dto/outputs/session-preview.output.dto';
+import { AttendanceOutputDto } from '@domains/session/application/dto/outputs/attendance.output.dto';
+import { TeamPresetMemberOutputDto } from '@domains/session/application/dto/outputs/team-preset-member.output.dto';
 import { MatchOutputDto } from '@domains/match/application/dto/outputs/match.output.dto';
 import { MatchTeamMemberOutputDto } from '@domains/match/application/dto/outputs/match-team-member.output.dto';
+import { AttachmentOutputDto } from '@domains/attachment/application/dto/outputs/attachment.output.dto';
+import { ExtractionResultOutputDto } from '@domains/attachment/application/dto/outputs/extraction-result.output.dto';
 import { ContentType } from '@domains/session/domain/enums/content-type.enum';
+import { AttendanceStatus } from '@domains/session/domain/enums/attendance-status.enum';
 import { SessionStatus } from '@domains/session/domain/enums/session-status.enum';
 import { MatchStatus } from '@domains/match/domain/enums/match-status.enum';
 import { Side } from '@domains/match/domain/enums/side.enum';
+import { AttachmentScope } from '@domains/attachment/domain/enums/attachment-scope.enum';
+import { AttachmentType } from '@domains/attachment/domain/enums/attachment-type.enum';
+import { ExtractionStatus } from '@domains/attachment/domain/enums/extraction-status.enum';
 import { Team } from '@shared/domain/enums/team.enum';
 import { Lane } from '@shared/domain/enums/lane.enum';
 
@@ -91,6 +109,13 @@ describe('Presentation GraphQL (e2e)', () => {
   const getSessionsUseCase: UseCaseMock = { execute: jest.fn() };
   const getSessionUseCase: UseCaseMock = { execute: jest.fn() };
   const getSessionPreviewUseCase: UseCaseMock = { execute: jest.fn() };
+  const getCommentsUseCase: UseCaseMock = { execute: jest.fn() };
+  const getMatchesBySessionUseCase: UseCaseMock = { execute: jest.fn() };
+  const getAttachmentsBySessionUseCase: UseCaseMock = { execute: jest.fn() };
+  const getAttachmentsByMatchUseCase: UseCaseMock = { execute: jest.fn() };
+  const getExtractionResultsByMatchUseCase: UseCaseMock = {
+    execute: jest.fn(),
+  };
 
   const createMatchFromPresetUseCase: UseCaseMock = { execute: jest.fn() };
   const setLaneUseCase: UseCaseMock = { execute: jest.fn() };
@@ -121,6 +146,10 @@ describe('Presentation GraphQL (e2e)', () => {
         FriendQueryResolver,
         FriendMutationResolver,
         SessionQueryResolver,
+        PublicSessionQueryResolver,
+        AttendanceFieldResolver,
+        TeamPresetMemberFieldResolver,
+        MatchTeamMemberFieldResolver,
         MatchMutationResolver,
         { provide: GetFriendsUseCase, useValue: getFriendsUseCase },
         { provide: GetFriendUseCase, useValue: getFriendUseCase },
@@ -131,6 +160,23 @@ describe('Presentation GraphQL (e2e)', () => {
         { provide: GetSessionsUseCase, useValue: getSessionsUseCase },
         { provide: GetSessionUseCase, useValue: getSessionUseCase },
         { provide: GetSessionPreviewUseCase, useValue: getSessionPreviewUseCase },
+        { provide: GetCommentsUseCase, useValue: getCommentsUseCase },
+        {
+          provide: GetMatchesBySessionUseCase,
+          useValue: getMatchesBySessionUseCase,
+        },
+        {
+          provide: GetAttachmentsBySessionUseCase,
+          useValue: getAttachmentsBySessionUseCase,
+        },
+        {
+          provide: GetAttachmentsByMatchUseCase,
+          useValue: getAttachmentsByMatchUseCase,
+        },
+        {
+          provide: GetExtractionResultsByMatchUseCase,
+          useValue: getExtractionResultsByMatchUseCase,
+        },
         {
           provide: CreateMatchFromPresetUseCase,
           useValue: createMatchFromPresetUseCase,
@@ -172,6 +218,7 @@ describe('Presentation GraphQL (e2e)', () => {
     jest.clearAllMocks();
     friendStore = {
       'friend-1': buildFriend('friend-1', 'Alice'),
+      'friend-2': buildFriend('friend-2', 'Bob'),
     };
 
     sessionTokenService.validateToken.mockImplementation(
@@ -245,6 +292,44 @@ describe('Presentation GraphQL (e2e)', () => {
         startsAt: fixedDate(),
       }),
     );
+    getCommentsUseCase.execute.mockImplementation(async (input: { sessionId: string }) => [
+      buildCommentOutput(input.sessionId),
+    ]);
+    getMatchesBySessionUseCase.execute.mockImplementation(async (input: {
+      sessionId: string;
+    }) => [
+      buildMatchOutput(
+        input.sessionId === 'session-2' ? 'match-2' : 'match-1',
+        input.sessionId,
+      ),
+    ]);
+    getAttachmentsBySessionUseCase.execute.mockImplementation(
+      async (input: { sessionId: string }) => [
+        buildAttachmentOutput({
+          id: `session-attachment-${input.sessionId}`,
+          sessionId: input.sessionId,
+          matchId: null,
+          type: AttachmentType.FUTSAL_PHOTO,
+          originalFileName: `${input.sessionId}-photo.png`,
+        }),
+      ],
+    );
+    getAttachmentsByMatchUseCase.execute.mockImplementation(async (input: {
+      matchId: string;
+    }) => [
+      buildAttachmentOutput({
+        id: `match-attachment-${input.matchId}`,
+        sessionId: input.matchId === 'match-2' ? 'session-2' : 'session-1',
+        matchId: input.matchId,
+        type: AttachmentType.LOL_RESULT_SCREEN,
+        originalFileName: `${input.matchId}-end.png`,
+      }),
+    ]);
+    getExtractionResultsByMatchUseCase.execute.mockImplementation(
+      async (input: { matchId: string }) => [
+        buildExtractionResultOutput(input.matchId),
+      ],
+    );
 
     createMatchFromPresetUseCase.execute.mockResolvedValue({ id: 'match-1' });
     setLaneUseCase.execute.mockResolvedValue({ id: 'match-1' });
@@ -285,6 +370,114 @@ describe('Presentation GraphQL (e2e)', () => {
     expect((result.data as { sessionPreview: { title: string } }).sessionPreview.title).toBe(
       'Session Preview',
     );
+  });
+
+  it('allows publicSessions without token and returns nested public data', async () => {
+    const result = await executeGraphql({
+      schema,
+      source: `
+        query {
+          publicSessions(first: 1) {
+            edges {
+              node {
+                id
+                title
+                attendances {
+                  status
+                  friend {
+                    displayName
+                  }
+                }
+                teamPresetMembers {
+                  team
+                  lane
+                  friend {
+                    displayName
+                  }
+                }
+                matches {
+                  matchNo
+                  teamMembers {
+                    friend {
+                      displayName
+                    }
+                  }
+                  attachments {
+                    originalFileName
+                  }
+                  extractionResults {
+                    status
+                  }
+                }
+                attachments {
+                  originalFileName
+                }
+                comments {
+                  body
+                }
+              }
+            }
+          }
+        }
+      `,
+    });
+
+    expect(result.errors).toBeUndefined();
+    const edge = (
+      result.data as {
+        publicSessions: {
+          edges: Array<{
+            node: {
+              title: string;
+              attendances: Array<{ friend: { displayName: string } }>;
+              matches: Array<{
+                attachments: Array<{ originalFileName: string | null }>;
+                extractionResults: Array<{ status: string }>;
+              }>;
+              comments: Array<{ body: string }>;
+            };
+          }>;
+        };
+      }
+    ).publicSessions.edges[0];
+
+    expect(edge?.node.title).toBe('Session session-1');
+    expect(edge?.node.attendances[0]?.friend.displayName).toBe('Alice');
+    expect(edge?.node.matches[0]?.attachments[0]?.originalFileName).toBe(
+      'match-1-end.png',
+    );
+    expect(edge?.node.matches[0]?.extractionResults[0]?.status).toBe('DONE');
+    expect(edge?.node.comments[0]?.body).toBe('Comment for session-1');
+  });
+
+  it('allows publicSession without token', async () => {
+    const result = await executeGraphql({
+      schema,
+      source: `
+        query($id: ID!) {
+          publicSession(sessionId: $id) {
+            id
+            title
+            matchCount
+          }
+        }
+      `,
+      variables: {
+        id: toGlobalId('Session', 'session-1'),
+      },
+    });
+
+    expect(result.errors).toBeUndefined();
+    const data = result.data as {
+      publicSession: {
+        id: string;
+        title: string;
+        matchCount: number;
+      };
+    };
+    expect(data.publicSession.id).toBe(toGlobalId('Session', 'session-1'));
+    expect(data.publicSession.title).toBe('Session session-1');
+    expect(data.publicSession.matchCount).toBe(1);
   });
 
   it('enforces admin-only mutation', async () => {
@@ -490,8 +683,32 @@ function buildSessionDetail(id: string): SessionDetailOutputDto {
     isAdminUnlocked: false,
     editorToken: 'editor-token',
     adminToken: 'admin-token',
-    attendances: [],
-    teamPresetMembers: [],
+    attendances: [
+      new AttendanceOutputDto({
+        id: `attendance-${id}-1`,
+        friendId: 'friend-1',
+        status: AttendanceStatus.ATTENDING,
+      }),
+      new AttendanceOutputDto({
+        id: `attendance-${id}-2`,
+        friendId: 'friend-2',
+        status: AttendanceStatus.ATTENDING,
+      }),
+    ],
+    teamPresetMembers: [
+      new TeamPresetMemberOutputDto({
+        id: `preset-${id}-1`,
+        friendId: 'friend-1',
+        team: Team.A,
+        lane: Lane.TOP,
+      }),
+      new TeamPresetMemberOutputDto({
+        id: `preset-${id}-2`,
+        friendId: 'friend-2',
+        team: Team.B,
+        lane: Lane.JG,
+      }),
+    ],
     createdAt: fixedDate(),
   });
 }
@@ -507,13 +724,66 @@ function buildMatchOutput(id: string, sessionId: string): MatchOutputDto {
     isConfirmed: false,
     teamMembers: [
       new MatchTeamMemberOutputDto({
-        id: `member-${id}`,
+        id: `member-${id}-1`,
         friendId: 'friend-1',
         team: Team.A,
-        lane: Lane.UNKNOWN,
+        lane: Lane.TOP,
+        champion: 'Ahri',
+      }),
+      new MatchTeamMemberOutputDto({
+        id: `member-${id}-2`,
+        friendId: 'friend-2',
+        team: Team.B,
+        lane: Lane.JG,
         champion: null,
       }),
     ],
+    createdAt: fixedDate(),
+  });
+}
+
+function buildCommentOutput(sessionId: string): CommentOutputDto {
+  return new CommentOutputDto({
+    id: `comment-${sessionId}`,
+    sessionId,
+    body: `Comment for ${sessionId}`,
+    displayName: 'Alice',
+    createdAt: fixedDate(),
+  });
+}
+
+function buildAttachmentOutput(input: {
+  id: string;
+  sessionId: string;
+  matchId: string | null;
+  type: AttachmentType;
+  originalFileName: string;
+}): AttachmentOutputDto {
+  return new AttachmentOutputDto({
+    id: input.id,
+    sessionId: input.sessionId,
+    matchId: input.matchId,
+    scope:
+      input.matchId === null ? AttachmentScope.SESSION : AttachmentScope.MATCH,
+    type: input.type,
+    s3Key: `uploads/${input.id}`,
+    contentType: 'image/png',
+    size: 100,
+    width: 100,
+    height: 100,
+    originalFileName: input.originalFileName,
+    createdAt: fixedDate(),
+  });
+}
+
+function buildExtractionResultOutput(matchId: string): ExtractionResultOutputDto {
+  return new ExtractionResultOutputDto({
+    id: `extraction-${matchId}`,
+    attachmentId: `match-attachment-${matchId}`,
+    matchId,
+    status: ExtractionStatus.DONE,
+    model: 'ocr-v1',
+    result: null,
     createdAt: fixedDate(),
   });
 }
