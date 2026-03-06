@@ -1,43 +1,41 @@
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import type { Metadata } from "next";
-import type { ReactNode } from "react";
-import { Providers } from "./providers";
-
-function resolveMetadataBase(): URL {
-  const candidate =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.PUBLIC_BASE_URL ??
-    "http://localhost:3000";
-
-  try {
-    return new URL(candidate);
-  } catch {
-    return new URL("http://localhost:3000");
-  }
-}
 
 export const metadata: Metadata = {
   title: "PlayNote",
-  description: "PlayNote web app",
-  metadataBase: resolveMetadataBase(),
+  description: "Track your gaming sessions and stats",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: ReactNode;
-}>) {
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="ko" className="h-full">
       <head>
         <link
           rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable.css"
+          as="style"
+          crossOrigin="anonymous"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL@20..48,100..700,0..1"
+          rel="stylesheet"
         />
       </head>
-      <body className="h-full antialiased">
-        <Providers>{children}</Providers>
+      <body className="h-full font-pretendard bg-[var(--bg-page)] text-[var(--text-primary)] antialiased">
+        <div className="mx-auto h-full max-w-[430px]">
+          {children}
+        </div>
       </body>
     </html>
   );

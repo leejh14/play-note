@@ -1,87 +1,209 @@
-export type SessionContent = "LoL" | "Futsal";
+export type ContentType = "lol" | "futsal";
+export type SessionStatus = "confirmed" | "scheduled" | "done";
+export type AttendanceStatus = "yes" | "maybe" | "no";
+export type Lane = "TOP" | "JG" | "MID" | "ADC" | "SUP";
+export type Team = "A" | "B";
 
-export type SessionStatus = "Confirmed" | "Scheduled" | "Done";
+export interface Friend {
+  id: string;
+  name: string;
+  riotId: string;
+  archived: boolean;
+}
 
-export type Session = {
-  readonly id: string;
-  readonly title: string;
-  readonly content: SessionContent;
-  readonly dateLabel: string;
-  readonly membersLabel: string;
-  readonly matchesLabel: string;
-  readonly status: SessionStatus;
-  readonly teamA?: string;
-  readonly teamB?: string;
-  readonly note?: string;
-};
+export interface SessionMember {
+  friendId: string;
+  name: string;
+  team?: Team;
+  lane?: Lane;
+  attendance: AttendanceStatus;
+  champion?: string;
+}
 
-export const sessions: readonly Session[] = [
+export interface MatchResult {
+  id: string;
+  number: number;
+  status: "completed" | "in_progress";
+  winnerTeam: Team;
+  endScreenFile?: string;
+  ocrDone: boolean;
+  teamAPlayers: { name: string; lane: Lane; champion: string }[];
+  teamBPlayers: { name: string; lane: Lane; champion: string }[];
+}
+
+export interface Session {
+  id: string;
+  title: string;
+  contentType: ContentType;
+  status: SessionStatus;
+  date: string;
+  time: string;
+  memberCount: number;
+  matchCount: number;
+  photoCount: number;
+  teamA: string[];
+  teamB: string[];
+  members: SessionMember[];
+  matches: MatchResult[];
+}
+
+export interface FriendStat {
+  friendId: string;
+  name: string;
+  winRate: number;
+  wins: number;
+  losses: number;
+  matches: number;
+  mainLane: Lane;
+}
+
+export interface FriendDetailStat {
+  friendId: string;
+  name: string;
+  riotId: string;
+  winRate: number;
+  wins: number;
+  losses: number;
+  matches: number;
+  topLane: Lane;
+  topLaneTimes: number;
+  laneDistribution: { lane: Lane; percentage: number }[];
+  champions: { name: string; wins: number; games: number; winRate: number }[];
+}
+
+export const friends: Friend[] = [
+  { id: "1", name: "Junho", riotId: "Junho#KR1", archived: false },
+  { id: "2", name: "Seungwoo", riotId: "SwLee#KR2", archived: false },
+  { id: "3", name: "Hyunwoo", riotId: "HW Mid#KR3", archived: false },
+  { id: "4", name: "Dongwook", riotId: "DW Bot#KR4", archived: false },
+  { id: "5", name: "Minjae", riotId: "MJ Top#KR5", archived: false },
+  { id: "6", name: "Taehyun", riotId: "TH Sup#KR6", archived: false },
+  { id: "7", name: "Jiwon", riotId: "JW#KR7", archived: false },
+  { id: "8", name: "Sunghoon", riotId: "SH Jg#KR8", archived: false },
+  { id: "9", name: "Youngjin", riotId: "YJ Adc#KR9", archived: false },
+  { id: "10", name: "Kangwoo", riotId: "KW#KR10", archived: false },
+  { id: "11", name: "Minsu", riotId: "MS#KR11", archived: false },
+  { id: "12", name: "Sungjin", riotId: "SJ#OLD", archived: true },
+];
+
+export const sessions: Session[] = [
   {
-    id: "saturday-night",
+    id: "s1",
     title: "Saturday Night",
-    content: "LoL",
-    dateLabel: "Feb 28, 2026",
-    membersLabel: "10 members",
-    matchesLabel: "3 matches",
-    status: "Confirmed",
-    teamA: "A: Junho, Seungwoo +3",
-    teamB: "B: Minjae, Jiwon +3",
+    contentType: "lol",
+    status: "confirmed",
+    date: "Feb 28, 2026",
+    time: "7:00 PM",
+    memberCount: 10,
+    matchCount: 3,
+    photoCount: 0,
+    teamA: ["Junho", "Seungwoo", "Hyunwoo", "Dongwook", "Taehyun"],
+    teamB: ["Minjae", "Jiwon", "Sunghoon", "Kangwoo", "Youngjin"],
+    members: [
+      { friendId: "1", name: "Junho", team: "A", lane: "TOP", attendance: "yes" },
+      { friendId: "2", name: "Seungwoo", team: "A", lane: "JG", attendance: "yes" },
+      { friendId: "3", name: "Hyunwoo", team: "A", lane: "MID", attendance: "yes" },
+      { friendId: "4", name: "Dongwook", team: "A", lane: "ADC", attendance: "yes" },
+      { friendId: "6", name: "Taehyun", team: "A", lane: "SUP", attendance: "yes" },
+      { friendId: "5", name: "Minjae", team: "B", lane: "MID", attendance: "yes" },
+      { friendId: "7", name: "Jiwon", team: "B", lane: "TOP", attendance: "yes" },
+      { friendId: "8", name: "Sunghoon", team: "B", lane: "JG", attendance: "yes" },
+      { friendId: "10", name: "Kangwoo", team: "B", lane: "ADC", attendance: "yes" },
+      { friendId: "9", name: "Youngjin", team: "B", lane: "SUP", attendance: "yes" },
+    ],
+    matches: [
+      {
+        id: "m1",
+        number: 1,
+        status: "completed",
+        winnerTeam: "A",
+        endScreenFile: "endscreen_match1.png",
+        ocrDone: true,
+        teamAPlayers: [
+          { name: "Junho", lane: "TOP", champion: "Garen" },
+          { name: "Seungwoo", lane: "JG", champion: "LeeSin" },
+          { name: "Hyunwoo", lane: "MID", champion: "Ahri" },
+          { name: "Dongwook", lane: "ADC", champion: "Jinx" },
+          { name: "Taehyun", lane: "SUP", champion: "Thresh" },
+        ],
+        teamBPlayers: [
+          { name: "Minjae", lane: "MID", champion: "Syndra" },
+          { name: "Jiwon", lane: "TOP", champion: "Darius" },
+          { name: "Sunghoon", lane: "JG", champion: "Elise" },
+          { name: "Kangwoo", lane: "ADC", champion: "Ezreal" },
+          { name: "Youngjin", lane: "SUP", champion: "Lulu" },
+        ],
+      },
+    ],
   },
   {
-    id: "wednesday-match",
+    id: "s2",
     title: "Wednesday Match",
-    content: "LoL",
-    dateLabel: "Mar 5, 2026",
-    membersLabel: "6 / 10",
-    matchesLabel: "",
-    status: "Scheduled",
-    note: "Setup in progress — waiting for attendance",
+    contentType: "lol",
+    status: "scheduled",
+    date: "Mar 5, 2026",
+    time: "8:00 PM",
+    memberCount: 10,
+    matchCount: 0,
+    photoCount: 0,
+    teamA: [],
+    teamB: [],
+    members: [
+      { friendId: "1", name: "Junho", attendance: "yes" },
+      { friendId: "2", name: "Seungwoo", attendance: "yes" },
+      { friendId: "3", name: "Hyunwoo", attendance: "yes" },
+      { friendId: "5", name: "Minjae", attendance: "maybe" },
+      { friendId: "4", name: "Dongwook", attendance: "yes" },
+      { friendId: "6", name: "Taehyun", attendance: "maybe" },
+    ],
+    matches: [],
   },
   {
-    id: "sunday-futsal",
+    id: "s3",
     title: "Sunday Futsal",
-    content: "Futsal",
-    dateLabel: "Feb 23, 2026",
-    membersLabel: "12 members",
-    matchesLabel: "5 photos",
-    status: "Done",
-    teamA: "A: Minjae, Junho +4",
-    teamB: "B: Sangmin, Daeho +4",
+    contentType: "futsal",
+    status: "done",
+    date: "Feb 23, 2026",
+    time: "2:00 PM",
+    memberCount: 12,
+    matchCount: 2,
+    photoCount: 5,
+    teamA: ["Minsu", "Jihoon", "Dongwook", "Junho", "Minjae", "Taehyun"],
+    teamB: ["Sangmin", "Daeho", "Seungwoo", "Hyunwoo", "Jiwon", "Sunghoon"],
+    members: [],
+    matches: [],
   },
-] as const;
+];
 
-export type Friend = {
-  readonly id: string;
-  readonly name: string;
-  readonly riotId: string;
-  readonly archived?: boolean;
+export const friendStats: FriendStat[] = [
+  { friendId: "3", name: "Hyunwoo", winRate: 71, wins: 10, losses: 4, matches: 14, mainLane: "MID" },
+  { friendId: "1", name: "Junho", winRate: 64, wins: 9, losses: 5, matches: 14, mainLane: "MID" },
+  { friendId: "2", name: "Seungwoo", winRate: 58, wins: 7, losses: 5, matches: 12, mainLane: "JG" },
+  { friendId: "4", name: "Dongwook", winRate: 55, wins: 6, losses: 5, matches: 11, mainLane: "ADC" },
+  { friendId: "5", name: "Minjae", winRate: 50, wins: 7, losses: 7, matches: 14, mainLane: "TOP" },
+  { friendId: "6", name: "Taehyun", winRate: 46, wins: 6, losses: 7, matches: 13, mainLane: "SUP" },
+  { friendId: "7", name: "Jiwon", winRate: 43, wins: 6, losses: 8, matches: 14, mainLane: "TOP" },
+];
+
+export const junhoDetailStat: FriendDetailStat = {
+  friendId: "1",
+  name: "Junho",
+  riotId: "Junho#KR1",
+  winRate: 64,
+  wins: 9,
+  losses: 5,
+  matches: 14,
+  topLane: "MID",
+  topLaneTimes: 8,
+  laneDistribution: [
+    { lane: "MID", percentage: 57 },
+    { lane: "ADC", percentage: 21 },
+    { lane: "SUP", percentage: 14 },
+    { lane: "TOP", percentage: 7 },
+  ],
+  champions: [
+    { name: "Ahri", wins: 5, games: 6, winRate: 83 },
+    { name: "Syndra", wins: 3, games: 4, winRate: 75 },
+    { name: "Orianna", wins: 1, games: 2, winRate: 50 },
+  ],
 };
-
-export const friends: readonly Friend[] = [
-  { id: "junho", name: "Junho", riotId: "Junho#KR1" },
-  { id: "seungwoo", name: "Seungwoo", riotId: "SwLee#KR2" },
-  { id: "hyunwoo", name: "Hyunwoo", riotId: "HW Kim#KR3" },
-  { id: "dongwook", name: "Dongwook", riotId: "DW Bot#KR4" },
-  { id: "minjae", name: "Minjae", riotId: "MJ Top#KR5" },
-  { id: "taehyun", name: "Taehyun", riotId: "TH Sup#KR6" },
-  { id: "sungjin", name: "Sungjin", riotId: "SJ#OLD", archived: true },
-] as const;
-
-export type FriendStatRow = {
-  readonly rank: number;
-  readonly friendId: string;
-  readonly name: string;
-  readonly wr: string;
-  readonly wl: string;
-  readonly lane: string;
-};
-
-export const statisticsRows: readonly FriendStatRow[] = [
-  { rank: 1, friendId: "hyunwoo", name: "Hyunwoo", wr: "71%", wl: "10-4", lane: "MID" },
-  { rank: 2, friendId: "junho", name: "Junho", wr: "64%", wl: "9-5", lane: "MID" },
-  { rank: 3, friendId: "seungwoo", name: "Seungwoo", wr: "58%", wl: "7-5", lane: "JG" },
-  { rank: 4, friendId: "dongwook", name: "Dongwook", wr: "55%", wl: "6-5", lane: "ADC" },
-  { rank: 5, friendId: "minjae", name: "Minjae", wr: "50%", wl: "7-7", lane: "TOP" },
-  { rank: 6, friendId: "taehyun", name: "Taehyun", wr: "46%", wl: "6-7", lane: "SUP" },
-  { rank: 7, friendId: "jiwon", name: "Jiwon", wr: "43%", wl: "6-8", lane: "TOP" },
-] as const;

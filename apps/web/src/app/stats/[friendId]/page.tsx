@@ -1,158 +1,142 @@
 "use client";
 
-import { useQuery } from "@apollo/client";
-import { useParams } from "next/navigation";
-import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
-import { PhoneFrame } from "@/components/layout/phone-frame";
-import { PageHeader } from "@/components/layout/page-header";
-import { LaneBarChart } from "@/components/stats/lane-bar-chart";
-import { ChampionTable } from "@/components/stats/champion-table";
-import { TokenRequiredState } from "@/components/auth/token-required-state";
-import { Card } from "@/components/ui/card";
-import { STATS_DETAIL_QUERY } from "@/lib/graphql/operations";
-import { getGraphqlErrorMessage } from "@/lib/error-messages";
-import { getDefaultSessionId, getToken } from "@/lib/token";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ChevronDown } from "lucide-react";
+import { junhoDetailStat } from "@/lib/mock-data";
 
-type StatsDetailQueryData = {
-  readonly statsDetail: {
-    readonly friend: {
-      readonly id: string;
-      readonly displayName: string;
-      readonly riotGameName: string | null;
-      readonly riotTagLine: string | null;
-    };
-    readonly winRate: number | null;
-    readonly totalMatches: number;
-    readonly topLane: string | null;
-    readonly laneDistribution: Array<{
-      readonly lane: string;
-      readonly playCount: number;
-    }>;
-    readonly topChampions: Array<{
-      readonly champion: string;
-      readonly wins: number;
-      readonly games: number;
-      readonly winRate: number;
-    }>;
-  };
-};
-
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  readonly label: string;
-  readonly value: string;
-  readonly sub: string;
-}) {
-  return (
-    <Card className="flex flex-1 flex-col items-center justify-center px-[10px] py-[14px]">
-      <div className="text-[10px] font-[700] text-[var(--pn-text-muted)]">{label}</div>
-      <div className="mt-[6px] text-[18px] font-[900] text-[var(--pn-primary)]">{value}</div>
-      <div className="mt-[4px] text-[10px] font-[700] text-[var(--pn-text-muted)]">{sub}</div>
-    </Card>
-  );
-}
-
-export default function StatsFriendDetailPage() {
-  const params = useParams<{ friendId: string }>();
-  const activeSessionId = getDefaultSessionId();
-  const activeToken = activeSessionId ? getToken(activeSessionId) : null;
-  const hasAuth = Boolean(activeSessionId && activeToken);
-
-  const { data, loading, error } = useQuery<StatsDetailQueryData>(STATS_DETAIL_QUERY, {
-    variables: {
-      input: {
-        friendId: decodeURIComponent(params.friendId),
-      },
-    },
-    skip: !hasAuth,
-  });
-
-  const detail = data?.statsDetail;
-  const laneRows =
-    detail?.laneDistribution.map((row) => ({
-      label: row.lane,
-      pct:
-        detail.totalMatches > 0
-          ? Math.round((row.playCount / detail.totalMatches) * 100)
-          : 0,
-    })) ?? [];
-  const championRows =
-    detail?.topChampions.map((row) => ({
-      name: row.champion,
-      wins: row.wins,
-      games: row.games,
-      wr: `${Math.round(row.winRate * 100)}%`,
-    })) ?? [];
+export default function FriendStatsPage() {
+  const router = useRouter();
+  const stat = junhoDetailStat;
 
   return (
-    <PhoneFrame>
-      <div className="flex min-h-screen w-full">
-        <BottomTabBar mode="side" />
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <div className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col">
-            <PageHeader title="Statistics" backHref="/stats" />
+    <div className="flex h-full flex-col overflow-auto bg-[var(--gray-100)]">
+      {/* Header */}
+      <div className="flex items-center gap-[8px] bg-[var(--white)] px-[24px] pt-[16px] pb-[20px]">
+        <button onClick={() => router.back()}>
+          <ArrowLeft size={24} className="text-[var(--black)]" />
+        </button>
+        <h1 className="text-[22px] font-bold text-[var(--black)]">
+          Statistics
+        </h1>
+      </div>
 
-            <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px] sm:px-[20px] lg:px-[28px]">
-              {!hasAuth ? (
-                <TokenRequiredState />
-              ) : error ? (
-                <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
-                  {getGraphqlErrorMessage(error.graphQLErrors[0]?.extensions?.code as string | undefined)}
-                </div>
-              ) : loading || !detail ? (
-                <div className="py-[20px] text-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
-                  불러오는 중...
-                </div>
-              ) : (
-                <>
-                  <Card className="rounded-[14px] px-[12px] py-[10px] shadow-[var(--pn-shadow-soft)]">
-                    <div className="text-[14px] font-[900] text-[var(--pn-text-primary)]">
-                      {detail.friend.displayName}
-                    </div>
-                    <div className="mt-[6px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
-                      {detail.friend.riotGameName && detail.friend.riotTagLine
-                        ? `${detail.friend.riotGameName}#${detail.friend.riotTagLine}`
-                        : "Riot ID not linked"}{" "}
-                      · {detail.totalMatches} matches played
-                    </div>
-                  </Card>
+      {/* Friend Selector */}
+      <div className="flex flex-col gap-[8px] bg-[var(--white)] px-[16px] pb-[12px]">
+        <div className="flex h-[48px] items-center justify-between rounded-[var(--radius-md)] bg-[var(--gray-100)] px-[16px]">
+          <span className="text-[16px] font-semibold text-[var(--black)]">
+            {stat.name}
+          </span>
+          <ChevronDown size={20} className="text-[var(--gray-500)]" />
+        </div>
+        <span className="text-[13px] text-[var(--gray-500)]">
+          {stat.riotId} · {stat.matches} matches played
+        </span>
+      </div>
 
-                  <div className="mt-[12px] flex gap-[12px]">
-                    <StatCard
-                      label="Win Rate"
-                      value={detail.winRate === null ? "–" : `${Math.round(detail.winRate * 100)}%`}
-                      sub={`${detail.totalMatches} matches`}
-                    />
-                    <StatCard
-                      label="Top Lane"
-                      value={detail.topLane ?? "–"}
-                      sub="most played"
-                    />
-                  </div>
-
-                  <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">
-                    Lane Distribution
-                  </div>
-                  <div className="mt-[10px]">
-                    <LaneBarChart data={laneRows} />
-                  </div>
-
-                  <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">
-                    Most Winning Champions
-                  </div>
-                  <div className="mt-[10px]">
-                    <ChampionTable rows={championRows} />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          <BottomTabBar mode="bottom" />
+      {/* Summary Cards */}
+      <div className="flex gap-[10px] p-[16px]">
+        <div className="flex flex-1 flex-col items-center gap-[4px] rounded-[var(--radius-lg)] bg-[var(--white)] px-[16px] py-[20px]">
+          <span className="text-[11px] font-medium text-[var(--gray-500)]">
+            Win Rate
+          </span>
+          <span className="text-[28px] font-bold text-[var(--primary)]">
+            {stat.winRate}%
+          </span>
+          <span className="text-[11px] text-[var(--gray-500)]">
+            {stat.wins}W {stat.losses}L
+          </span>
+        </div>
+        <div className="flex flex-1 flex-col items-center gap-[4px] rounded-[var(--radius-lg)] bg-[var(--white)] px-[16px] py-[20px]">
+          <span className="text-[11px] font-medium text-[var(--gray-500)]">
+            Matches
+          </span>
+          <span className="text-[28px] font-bold text-[var(--black)]">
+            {stat.matches}
+          </span>
+          <span className="text-[11px] text-[var(--gray-500)]">confirmed</span>
+        </div>
+        <div className="flex flex-1 flex-col items-center gap-[4px] rounded-[var(--radius-lg)] bg-[var(--white)] px-[16px] py-[20px]">
+          <span className="text-[11px] font-medium text-[var(--gray-500)]">
+            Top Lane
+          </span>
+          <span className="text-[28px] font-bold text-[var(--black)]">
+            {stat.topLane}
+          </span>
+          <span className="text-[11px] text-[var(--gray-500)]">
+            {stat.topLaneTimes} times
+          </span>
         </div>
       </div>
-    </PhoneFrame>
+
+      {/* Lane Distribution */}
+      <div className="px-[16px] pb-[12px]">
+        <div className="flex flex-col gap-[14px] rounded-[var(--radius-lg)] bg-[var(--white)] p-[20px]">
+          <h2 className="text-[17px] font-bold text-[var(--black)]">
+            Lane Distribution
+          </h2>
+          {stat.laneDistribution.map((lane) => (
+            <div key={lane.lane} className="flex items-center gap-[12px]">
+              <span className="w-[32px] text-[13px] font-medium text-[var(--gray-700)]">
+                {lane.lane}
+              </span>
+              <div className="flex h-[12px] flex-1 overflow-hidden rounded-full bg-[var(--gray-100)]">
+                <div
+                  className="h-full rounded-full bg-[var(--primary)]"
+                  style={{ width: `${lane.percentage}%` }}
+                />
+              </div>
+              <span className="w-[36px] text-right text-[13px] font-semibold text-[var(--primary)]">
+                {lane.percentage}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Champion Stats */}
+      <div className="px-[16px] pb-[24px]">
+        <div className="flex flex-col gap-[12px] rounded-[var(--radius-lg)] bg-[var(--white)] p-[20px]">
+          <h2 className="text-[17px] font-bold text-[var(--black)]">
+            Most Winning Champions
+          </h2>
+
+          {/* Table Header */}
+          <div className="flex items-center">
+            <span className="flex-1 text-[11px] font-medium text-[var(--gray-500)]">
+              Champion
+            </span>
+            <span className="w-[36px] text-center text-[11px] font-medium text-[var(--gray-500)]">
+              Wins
+            </span>
+            <span className="w-[36px] text-center text-[11px] font-medium text-[var(--gray-500)]">
+              Games
+            </span>
+            <span className="w-[40px] text-right text-[11px] font-medium text-[var(--gray-500)]">
+              WR
+            </span>
+          </div>
+
+          {stat.champions.map((champ) => (
+            <div key={champ.name} className="flex items-center">
+              <div className="flex flex-1 items-center gap-[10px]">
+                <div className="h-[32px] w-[32px] rounded-full bg-[var(--gray-100)]" />
+                <span className="text-[14px] font-medium text-[var(--black)]">
+                  {champ.name}
+                </span>
+              </div>
+              <span className="w-[36px] text-center text-[14px] font-bold text-[var(--primary)]">
+                {champ.wins}
+              </span>
+              <span className="w-[36px] text-center text-[14px] text-[var(--gray-700)]">
+                {champ.games}
+              </span>
+              <span className="w-[40px] text-right text-[14px] font-bold text-[var(--primary)]">
+                {champ.winRate}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

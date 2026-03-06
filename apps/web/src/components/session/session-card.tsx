@@ -1,64 +1,101 @@
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import Link from "next/link";
+import { Calendar, Users, Swords, Image } from "lucide-react";
+import type { Session } from "@/lib/mock-data";
 
-export function SessionCard({
-  title,
-  status,
-  dateLabel,
-  membersLabel,
-  matchesLabel,
-  content,
-  teamA,
-  teamB,
-  note,
-}: {
-  readonly title: string;
-  readonly status: "SCHEDULED" | "CONFIRMED" | "DONE";
-  readonly dateLabel: string;
-  readonly membersLabel: string;
-  readonly matchesLabel: string;
-  readonly content: "LOL" | "FUTSAL";
-  readonly teamA?: string;
-  readonly teamB?: string;
-  readonly note?: string;
-}) {
-  const statusTone = status === "CONFIRMED" ? "blueSoft" : "neutral";
-  const statusLabel = status[0] + status.slice(1).toLowerCase();
+const statusStyle: Record<string, { bg: string; text: string }> = {
+  confirmed: { bg: "bg-[var(--primary-light)]", text: "text-[var(--primary)]" },
+  scheduled: { bg: "bg-[var(--gray-100)]", text: "text-[var(--gray-700)]" },
+  done: { bg: "bg-[var(--gray-100)]", text: "text-[var(--gray-500)]" },
+};
+
+const statusLabel: Record<string, string> = {
+  confirmed: "Confirmed",
+  scheduled: "Scheduled",
+  done: "Done",
+};
+
+function ContentTypeBadge({ type }: { type: "lol" | "futsal" }) {
+  return (
+    <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary-light)]">
+      <span className="text-[14px] font-semibold text-[var(--primary)]">
+        {type === "lol" ? "LoL" : "⚽"}
+      </span>
+    </div>
+  );
+}
+
+export function SessionCard({ session }: { session: Session }) {
+  const badge = statusStyle[session.status];
 
   return (
-    <Card className="rounded-[18px] px-[14px] py-[14px] transition-transform hover:-translate-y-[1px]">
-      <div className="flex items-start justify-between gap-[12px]">
-        <div className="flex items-center gap-[10px]">
-          <div className="flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-[var(--pn-primary-light)] text-[12px] font-[700] text-[var(--pn-primary)]">
-            {content === "LOL" ? "LoL" : "F"}
+    <Link href={`/s/${session.id}`} className="block">
+      <div className="flex flex-col gap-[14px] rounded-[var(--radius-lg)] bg-[var(--white)] p-[20px]">
+        {/* Top row */}
+        <div className="flex w-full items-center justify-between">
+          <div className="flex items-center gap-[8px]">
+            <ContentTypeBadge type={session.contentType} />
+            <span className="text-[17px] font-bold text-[var(--black)]">
+              {session.title}
+            </span>
           </div>
-          <div className="text-[15px] font-[800] text-[var(--pn-text-primary)]">
-            {title}
-          </div>
+          <span
+            className={`rounded-[var(--radius-full)] px-[10px] py-[4px] text-[11px] font-semibold ${badge.bg} ${badge.text}`}
+          >
+            {statusLabel[session.status]}
+          </span>
         </div>
-        <Badge tone={statusTone}>{statusLabel}</Badge>
-      </div>
 
-      <div className="mt-[10px] flex flex-wrap items-center gap-x-[12px] gap-y-[6px] text-[11px] font-[600] text-[var(--pn-text-muted)]">
-        <span>{dateLabel}</span>
-        <span>{membersLabel}</span>
-        {matchesLabel ? <span>{matchesLabel}</span> : null}
-      </div>
+        {/* Info row */}
+        <div className="flex flex-wrap items-center gap-[16px]">
+          <span className="flex items-center gap-[4px] text-[13px] text-[var(--gray-500)]">
+            <Calendar size={14} />
+            {session.date}
+          </span>
+          <span className="flex items-center gap-[4px] text-[13px] text-[var(--gray-500)]">
+            <Users size={14} />
+            {session.status === "scheduled"
+              ? `${session.members.filter((m) => m.attendance === "yes").length} / ${session.memberCount}`
+              : `${session.memberCount} members`}
+          </span>
+          {session.matchCount > 0 && (
+            <span className="flex items-center gap-[4px] text-[13px] text-[var(--gray-500)]">
+              <Swords size={14} />
+              {session.matchCount} matches
+            </span>
+          )}
+          {session.photoCount > 0 && (
+            <span className="flex items-center gap-[4px] text-[13px] text-[var(--gray-500)]">
+              <Image size={14} />
+              {session.photoCount} photos
+            </span>
+          )}
+        </div>
 
-      {teamA && teamB ? (
-        <div className="mt-[10px] flex gap-[8px]">
-          <div className="flex-1 rounded-[12px] bg-[var(--pn-primary-light)] px-[10px] py-[8px] text-[11px] font-[600] text-[var(--pn-primary)]">
-            {teamA}
+        {/* Description for scheduled */}
+        {session.status === "scheduled" && session.matchCount === 0 && (
+          <p className="text-[12px] text-[var(--gray-500)]">
+            Setup in progress — waiting for attendance
+          </p>
+        )}
+
+        {/* Teams row */}
+        {session.teamA.length > 0 && (
+          <div className="flex w-full gap-[6px]">
+            <div className="flex h-[28px] flex-1 items-center rounded-[6px] bg-[var(--primary-light)] px-[8px]">
+              <span className="truncate text-[11px] font-medium text-[var(--primary)]">
+                A: {session.teamA.slice(0, 2).join(", ")}
+                {session.teamA.length > 2 && ` +${session.teamA.length - 2}`}
+              </span>
+            </div>
+            <div className="flex h-[28px] flex-1 items-center rounded-[6px] bg-[var(--red-light)] px-[8px]">
+              <span className="truncate text-[11px] font-medium text-[var(--red)]">
+                B: {session.teamB.slice(0, 2).join(", ")}
+                {session.teamB.length > 2 && ` +${session.teamB.length - 2}`}
+              </span>
+            </div>
           </div>
-          <div className="flex-1 rounded-[12px] bg-[var(--pn-pink-soft)] px-[10px] py-[8px] text-[11px] font-[600] text-[var(--pn-pink)]">
-            {teamB}
-          </div>
-        </div>
-      ) : note ? (
-        <div className="mt-[10px] text-[11px] font-[500] text-[var(--pn-text-muted)]">
-          {note}
-        </div>
-      ) : null}
-    </Card>
+        )}
+      </div>
+    </Link>
   );
 }

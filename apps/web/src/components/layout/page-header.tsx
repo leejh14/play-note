@@ -1,34 +1,28 @@
-import type { ReactNode } from "react";
-import Link from "next/link";
-import { IconChevronLeft } from "@/components/icons";
-import { IconButton } from "@/components/ui/icon-button";
+"use client";
 
-export function PageHeader({
-  title,
-  backHref,
-  right,
-}: {
-  readonly title: string;
-  readonly backHref?: string;
-  readonly right?: ReactNode;
-}) {
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+
+interface PageHeaderProps {
+  title: string;
+  showBack?: boolean;
+  rightSlot?: React.ReactNode;
+}
+
+export function PageHeader({ title, showBack, rightSlot }: PageHeaderProps) {
+  const router = useRouter();
+
   return (
-    <div className="relative flex h-[48px] items-center justify-center border-b border-[rgba(15,23,42,0.06)] bg-[rgba(255,255,255,0.96)] px-[12px]">
-      <div className="absolute left-[8px] top-1/2 -translate-y-1/2">
-        {backHref ? (
-          <Link href={backHref} aria-label="Back">
-            <IconButton>
-              <IconChevronLeft className="h-[22px] w-[22px]" />
-            </IconButton>
-          </Link>
-        ) : null}
+    <div className="flex w-full items-center justify-between px-[24px] py-[16px]">
+      <div className="flex items-center gap-[8px]">
+        {showBack && (
+          <button onClick={() => router.back()} className="p-0">
+            <ArrowLeft size={24} className="text-[var(--black)]" />
+          </button>
+        )}
+        <h1 className="text-[22px] font-bold text-[var(--black)]">{title}</h1>
       </div>
-      <div className="text-[15px] font-[800] tracking-[-0.2px] text-[var(--pn-text-primary)]">
-        {title}
-      </div>
-      <div className="absolute right-[8px] top-1/2 -translate-y-1/2">
-        {right}
-      </div>
+      {rightSlot && <div>{rightSlot}</div>}
     </div>
   );
 }

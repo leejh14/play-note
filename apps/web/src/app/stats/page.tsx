@@ -1,111 +1,89 @@
 "use client";
 
-import { useQuery } from "@apollo/client";
+import Link from "next/link";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
-import { PhoneFrame } from "@/components/layout/phone-frame";
-import { StatsTable, type StatsTableRow } from "@/components/stats/stats-table";
-import { TokenRequiredState } from "@/components/auth/token-required-state";
-import { SessionContextSwitcher } from "@/components/session/session-context-switcher";
-import { STATS_OVERVIEW_QUERY } from "@/lib/graphql/operations";
-import { getGraphqlErrorMessage } from "@/lib/error-messages";
-import { useActiveSession } from "@/lib/use-active-session";
+import { friendStats } from "@/lib/mock-data";
 
-type StatsOverviewQueryData = {
-  readonly statsOverview: {
-    readonly friends: Array<{
-      readonly friendId: string;
-      readonly friend: {
-        readonly id: string;
-        readonly displayName: string;
-      };
-      readonly winRate: number | null;
-      readonly wins: number;
-      readonly losses: number;
-      readonly totalMatches: number;
-      readonly topLane: string | null;
-    }>;
-  };
+const laneColors: Record<string, string> = {
+  MID: "bg-[var(--primary)]",
+  JG: "bg-[var(--gray-500)]",
+  ADC: "bg-[var(--gray-500)]",
+  TOP: "bg-[var(--gray-500)]",
+  SUP: "bg-[var(--gray-500)]",
 };
 
-export default function StatsPage() {
-  const {
-    activeSessionId,
-    hasAuth,
-    storedSessions,
-    selectSession,
-    removeSession,
-  } = useActiveSession();
-
-  const { data, loading, error } = useQuery<StatsOverviewQueryData>(STATS_OVERVIEW_QUERY, {
-    skip: !hasAuth,
-  });
-
-  const rows: StatsTableRow[] =
-    data?.statsOverview.friends.map((item, index) => ({
-      rank: index + 1,
-      friendId: item.friend.id,
-      name: item.friend.displayName,
-      wr: item.winRate === null ? "–" : `${Math.round(item.winRate * 100)}%`,
-      wl: `${item.wins}-${item.losses}`,
-      lane: item.topLane ?? "–",
-    })) ?? [];
-
+export default function StatsOverviewPage() {
   return (
-    <PhoneFrame>
-      <div className="flex min-h-screen w-full">
-        <BottomTabBar mode="side" />
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <div className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col">
-            <div className="border-b border-[rgba(15,23,42,0.08)] px-[16px] py-[14px] sm:px-[20px] lg:px-[28px]">
-              <div className="text-[18px] font-[900] tracking-[-0.2px] text-[var(--pn-text-primary)]">
-                Statistics
-              </div>
-              <div className="mt-[2px] text-[11px] font-[600] text-[var(--pn-text-muted)]">
-                친구별 성과 요약
-              </div>
-            </div>
+    <div className="flex h-full flex-col bg-[var(--white)]">
+      {/* Header */}
+      <div className="flex items-center gap-[8px] px-[24px] pt-[16px] pb-[20px]">
+        <h1 className="text-[22px] font-bold text-[var(--black)]">
+          Statistics
+        </h1>
+      </div>
 
-            <div className="border-b border-[rgba(15,23,42,0.08)] px-[16px] pb-[10px] pt-[12px] sm:px-[20px] lg:px-[28px]">
-              {hasAuth ? (
-                <SessionContextSwitcher
-                  activeSessionId={activeSessionId}
-                  sessions={storedSessions}
-                  onSelect={selectSession}
-                  onRemove={removeSession}
-                />
-              ) : null}
-              <div className="mt-[8px] grid grid-cols-[1fr_64px_64px_64px] gap-[8px] rounded-[10px] border border-[rgba(15,23,42,0.06)] bg-[rgba(15,23,42,0.03)] px-[10px] py-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
-                <div>Friend</div>
-                <div className="text-right">WR</div>
-                <div className="text-right">W-L</div>
-                <div className="text-right">Lane</div>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px] sm:px-[20px] lg:px-[28px]">
-              {!hasAuth ? (
-                <TokenRequiredState />
-              ) : error ? (
-                <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
-                  {getGraphqlErrorMessage(error.graphQLErrors[0]?.extensions?.code as string | undefined)}
-                </div>
-              ) : loading ? (
-                <div className="py-[20px] text-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
-                  불러오는 중...
-                </div>
-              ) : (
-                <>
-                  <StatsTable rows={rows} />
-                  <div className="pt-[24px] text-center text-[10px] font-[600] text-[var(--pn-text-muted)]">
-                    Tap a friend to see detailed stats
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          <BottomTabBar mode="bottom" />
+      {/* Column Header */}
+      <div className="flex items-center justify-between px-[24px] pb-[10px]">
+        <span className="text-[11px] font-medium text-[var(--gray-500)]">
+          Friend
+        </span>
+        <div className="flex gap-[20px]">
+          <span className="w-[40px] text-center text-[11px] font-medium text-[var(--gray-500)]">
+            WR
+          </span>
+          <span className="w-[40px] text-center text-[11px] font-medium text-[var(--gray-500)]">
+            W-L
+          </span>
+          <span className="w-[40px] text-center text-[11px] font-medium text-[var(--gray-500)]">
+            Lane
+          </span>
         </div>
       </div>
-    </PhoneFrame>
+
+      <div className="h-[1px] w-full bg-[var(--gray-100)]" />
+
+      {/* Friend Stats List */}
+      <div className="flex flex-1 flex-col overflow-auto">
+        {friendStats.map((stat, idx) => (
+          <Link
+            key={stat.friendId}
+            href={`/stats/${stat.friendId}`}
+            className="flex items-center justify-between border-b border-[var(--gray-100)] px-[24px] py-[14px]"
+          >
+            <div className="flex items-center gap-[8px]">
+              <span className="w-[16px] text-[14px] font-bold text-[var(--primary)]">
+                {idx + 1}
+              </span>
+              <span className="text-[15px] font-semibold text-[var(--black)]">
+                {stat.name}
+              </span>
+            </div>
+            <div className="flex items-center gap-[20px]">
+              <span className="w-[40px] text-center text-[14px] font-bold text-[var(--primary)]">
+                {stat.winRate}%
+              </span>
+              <span className="w-[40px] text-center text-[13px] text-[var(--gray-700)]">
+                {stat.wins}-{stat.losses}
+              </span>
+              <span
+                className={`flex w-[40px] items-center justify-center rounded-[var(--radius-full)] px-[8px] py-[3px] text-[10px] font-semibold text-[var(--white)] ${
+                  laneColors[stat.mainLane] ?? "bg-[var(--gray-500)]"
+                }`}
+              >
+                {stat.mainLane}
+              </span>
+            </div>
+          </Link>
+        ))}
+
+        <div className="flex items-center justify-center px-[24px] py-[16px]">
+          <span className="text-[13px] text-[var(--gray-500)]">
+            Tap a friend to see detailed stats
+          </span>
+        </div>
+      </div>
+
+      <BottomTabBar />
+    </div>
   );
 }

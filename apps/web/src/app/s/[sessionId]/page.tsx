@@ -1,223 +1,218 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useLazyQuery } from "@apollo/client";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
-import { PhoneFrame } from "@/components/layout/phone-frame";
-import { TokenRequiredState } from "@/components/auth/token-required-state";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { SESSION_QUERY } from "@/lib/graphql/operations";
-import { getGraphqlErrorMessage } from "@/lib/error-messages";
-import { tryDecodeSessionId } from "@/lib/relay-id";
+import { useRouter, useParams } from "next/navigation";
 import {
-  clearActiveSessionId,
-  getActiveSessionId,
-  getToken,
-  removeToken,
-  saveShareToken,
-  saveToken,
-  setActiveSessionId,
-} from "@/lib/token";
-import type { ReactNode } from "react";
+  ArrowLeft,
+  Share2,
+  Calendar,
+  Edit,
+  Plus,
+  Upload,
+  ImageIcon,
+  Send,
+} from "lucide-react";
+import Link from "next/link";
+import { sessions } from "@/lib/mock-data";
 
-type SessionStatus = "SCHEDULED" | "CONFIRMED" | "DONE";
-type AuthErrorCode = "UNAUTHORIZED" | "INVALID_TOKEN" | "SESSION_NOT_FOUND";
-
-const AUTH_ERROR_CODES = new Set<AuthErrorCode>([
-  "UNAUTHORIZED",
-  "INVALID_TOKEN",
-  "SESSION_NOT_FOUND",
-]);
-
-function SessionEntryShell({
-  children,
-}: {
-  readonly children: ReactNode;
-}) {
-  return (
-    <PhoneFrame>
-      <div className="flex min-h-screen w-full">
-        <BottomTabBar mode="side" />
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <div className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col">
-            {children}
-          </div>
-          <BottomTabBar mode="bottom" />
-        </div>
-      </div>
-    </PhoneFrame>
-  );
-}
-
-function EntryLoading() {
-  return (
-    <SessionEntryShell>
-      <div className="flex flex-1 items-center justify-center">
-        <div className="text-[13px] font-[700] text-[var(--pn-text-muted)]">
-          세션 정보를 불러오는 중...
-        </div>
-      </div>
-    </SessionEntryShell>
-  );
-}
-
-function readEntryToken(localSessionId: string | null, tokenFromQuery: string | null): string | null {
-  if (!localSessionId) return null;
-  if (tokenFromQuery) return tokenFromQuery;
-  return getToken(localSessionId);
-}
-
-export default function SessionEntryPage() {
-  const params = useParams<{ sessionId: string }>();
+export default function SessionDetailPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const params = useParams();
+  const session = sessions.find((s) => s.id === params.sessionId) ?? sessions[0];
+  const match = session.matches[0];
 
-  const globalSessionId = useMemo(
-    () => decodeURIComponent(params.sessionId),
-    [params.sessionId],
-  );
-  const localSessionId = useMemo(
-    () => tryDecodeSessionId(globalSessionId),
-    [globalSessionId],
-  );
-  const tokenFromQuery = searchParams.get("t")?.trim() || null;
-  const isClient = typeof window !== "undefined";
-  const requestToken = useMemo(() => {
-    if (!isClient) return null;
-    return readEntryToken(localSessionId, tokenFromQuery);
-  }, [isClient, localSessionId, tokenFromQuery]);
-
-  useEffect(() => {
-    if (!localSessionId || !tokenFromQuery) return;
-
-    saveToken(localSessionId, tokenFromQuery);
-    saveShareToken(localSessionId, tokenFromQuery);
-    setActiveSessionId(localSessionId);
-  }, [localSessionId, tokenFromQuery]);
-
-  const queryContext = useMemo(() => {
-    if (!localSessionId || !requestToken) return undefined;
-    return {
-      headers: {
-        "x-session-id": localSessionId,
-        "x-session-token": requestToken,
-      },
-    };
-  }, [localSessionId, requestToken]);
-
-  const shouldFetchSession = Boolean(globalSessionId && localSessionId && requestToken);
-
-  const [loadSession, { data, loading, error }] = useLazyQuery<{
-    session: {
-      status: SessionStatus;
-    };
-  }>(SESSION_QUERY, {
-    fetchPolicy: "network-only",
-  });
-
-  useEffect(() => {
-    if (!shouldFetchSession || !queryContext) return;
-    void loadSession({
-      variables: { sessionId: globalSessionId },
-      context: queryContext,
-    });
-  }, [globalSessionId, loadSession, queryContext, shouldFetchSession]);
-
-  const errorCode = useMemo(() => {
-    const code = error?.graphQLErrors[0]?.extensions?.code;
-    return typeof code === "string" ? code : null;
-  }, [error]);
-
-  useEffect(() => {
-    if (!localSessionId || !errorCode) return;
-    if (!AUTH_ERROR_CODES.has(errorCode as AuthErrorCode)) return;
-
-    removeToken(localSessionId);
-    if (getActiveSessionId() === localSessionId) {
-      clearActiveSessionId();
-    }
-  }, [errorCode, localSessionId]);
-
-  useEffect(() => {
-    if (!localSessionId) return;
-    if (!data?.session?.status) return;
-    setActiveSessionId(localSessionId);
-
-    const nextRoute =
-      data.session.status === "SCHEDULED"
-        ? `/s/${encodeURIComponent(globalSessionId)}/setup`
-        : `/s/${encodeURIComponent(globalSessionId)}/detail`;
-    router.replace(nextRoute);
-  }, [data, globalSessionId, localSessionId, router]);
-
-  if (!localSessionId) {
-    return (
-      <SessionEntryShell>
-        <div className="flex flex-1 items-center px-[16px] sm:px-[20px] lg:px-[28px]">
-          <TokenRequiredState
-            title="세션 링크가 올바르지 않습니다"
-            description="세션 링크를 다시 확인해주세요."
-          />
+  return (
+    <div className="flex h-full flex-col overflow-auto bg-[var(--white)]">
+      {/* Header */}
+      <div className="flex flex-col gap-[12px] px-[24px] pt-[16px] pb-[20px]">
+        <div className="flex items-center justify-between">
+          <button onClick={() => router.back()}>
+            <ArrowLeft size={24} className="text-[var(--black)]" />
+          </button>
+          <button>
+            <Share2 size={20} className="text-[var(--gray-700)]" />
+          </button>
         </div>
-      </SessionEntryShell>
-    );
-  }
-
-  if (!isClient) {
-    return <EntryLoading />;
-  }
-
-  if (errorCode && AUTH_ERROR_CODES.has(errorCode as AuthErrorCode)) {
-    return (
-      <SessionEntryShell>
-        <div className="flex flex-1 items-center px-[16px] sm:px-[20px] lg:px-[28px]">
-          <TokenRequiredState
-            title="다시 초대 링크가 필요합니다"
-            description={getGraphqlErrorMessage(errorCode)}
-          />
+        <div className="flex items-center gap-[8px]">
+          <span className="rounded-[var(--radius-full)] bg-[var(--primary-light)] px-[10px] py-[3px] text-[11px] font-semibold text-[var(--primary)]">
+            LoL
+          </span>
+          <h1 className="text-[22px] font-bold text-[var(--black)]">
+            {session.title}
+          </h1>
         </div>
-      </SessionEntryShell>
-    );
-  }
-
-  if (!requestToken) {
-    return (
-      <SessionEntryShell>
-        <div className="flex flex-1 items-center px-[16px] sm:px-[20px] lg:px-[28px]">
-          <TokenRequiredState />
+        <div className="flex items-center gap-[12px]">
+          <span className="flex items-center gap-[4px] text-[13px] text-[var(--gray-500)]">
+            <Calendar size={14} />
+            {session.date} {session.time}
+          </span>
+          <span className="rounded-[var(--radius-full)] bg-[var(--primary-light)] px-[10px] py-[4px] text-[11px] font-semibold text-[var(--primary)]">
+            Confirmed
+          </span>
         </div>
-      </SessionEntryShell>
-    );
-  }
+      </div>
 
-  if (error) {
-    return (
-      <SessionEntryShell>
-        <div className="flex flex-1 items-center px-[16px] sm:px-[20px] lg:px-[28px]">
-          <Card className="flex w-full flex-col items-center gap-[10px] border-[var(--pn-border)] px-[20px] py-[28px] text-center">
-            <div className="text-[16px] font-[800] text-[var(--pn-text-primary)]">
-              접근할 수 없습니다
+      {/* Setup Summary */}
+      <div className="flex flex-col gap-[10px] bg-[var(--gray-100)] px-[24px] py-[16px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[16px] font-bold text-[var(--black)]">
+            Setup
+          </span>
+          <button>
+            <Edit size={16} className="text-[var(--gray-500)]" />
+          </button>
+        </div>
+        <div className="flex gap-[12px]">
+          <div className="flex flex-1 flex-col gap-[4px] rounded-[var(--radius-sm)] bg-[var(--primary-light)] p-[10px]">
+            <span className="text-[11px] font-bold text-[var(--primary)]">
+              Team A
+            </span>
+            {session.members
+              .filter((m) => m.team === "A")
+              .map((m) => (
+                <span
+                  key={m.friendId}
+                  className="text-[11px] text-[var(--gray-700)]"
+                >
+                  {m.name}: {m.lane}
+                </span>
+              ))}
+          </div>
+          <div className="flex flex-1 flex-col gap-[4px] rounded-[var(--radius-sm)] bg-[var(--red-light)] p-[10px]">
+            <span className="text-[11px] font-bold text-[var(--red)]">
+              Team B
+            </span>
+            {session.members
+              .filter((m) => m.team === "B")
+              .map((m) => (
+                <span
+                  key={m.friendId}
+                  className="text-[11px] text-[var(--gray-700)]"
+                >
+                  {m.name}: {m.lane}
+                </span>
+              ))}
+          </div>
+        </div>
+        <span className="text-[12px] text-[var(--gray-500)]">
+          {session.members.filter((m) => m.attendance === "yes").length}{" "}
+          attending · {session.members.filter((m) => m.attendance !== "yes").length}{" "}
+          not decided
+        </span>
+      </div>
+
+      {/* Matches Section */}
+      <div className="flex flex-col gap-[12px] px-[24px] py-[20px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[16px] font-bold text-[var(--black)]">
+            Matches
+          </span>
+          <button className="flex items-center gap-[4px] rounded-[var(--radius-full)] border border-[var(--primary)] px-[12px] py-[6px]">
+            <Plus size={14} className="text-[var(--primary)]" />
+            <span className="text-[12px] font-semibold text-[var(--primary)]">
+              New Match
+            </span>
+          </button>
+        </div>
+
+        {match && (
+          <div className="flex flex-col gap-[10px] rounded-[var(--radius-md)] bg-[var(--gray-100)] p-[16px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[15px] font-bold text-[var(--black)]">
+                Match #{match.number}
+              </span>
+              <span className="text-[11px] font-semibold text-[var(--primary)]">
+                Completed
+              </span>
             </div>
-            <div className="text-[12px] font-[600] text-[var(--pn-text-muted)]">
-              {getGraphqlErrorMessage(errorCode)}
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="font-medium text-[var(--primary)]">
+                Team A (Blue)
+              </span>
+              <span className="font-bold text-[var(--primary)]">WIN</span>
             </div>
-            <Button
-              className="mt-[8px] h-[40px] rounded-[10px] px-[14px] text-[13px]"
-              onClick={() => router.push("/sessions")}
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-[var(--gray-700)]">End Screen</span>
+              <span className="text-[var(--primary)]">OCR Done</span>
+            </div>
+            {match.endScreenFile && (
+              <span className="text-[12px] text-[var(--gray-500)]">
+                📎 {match.endScreenFile}
+              </span>
+            )}
+            <Link
+              href={`/s/${session.id}/detail`}
+              className="text-right text-[13px] font-medium text-[var(--gray-500)]"
             >
-              세션 목록으로 이동
-            </Button>
-          </Card>
+              Show detail →
+            </Link>
+          </div>
+        )}
+      </div>
+
+      <div className="h-[1px] w-full bg-[var(--gray-100)]" />
+
+      {/* Photos Section */}
+      <div className="flex flex-col gap-[10px] px-[24px] py-[20px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[16px] font-bold text-[var(--black)]">
+            Photos
+          </span>
+          <button className="flex items-center gap-[4px]">
+            <Upload size={14} className="text-[var(--primary)]" />
+            <span className="text-[12px] font-semibold text-[var(--primary)]">
+              Upload
+            </span>
+          </button>
         </div>
-      </SessionEntryShell>
-    );
-  }
+        <p className="text-[13px] text-[var(--gray-500)]">
+          Group shots, highlights, etc.
+        </p>
+        <div className="flex gap-[8px]">
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              className="flex h-[80px] w-[80px] items-center justify-center rounded-[var(--radius-sm)] bg-[var(--gray-100)]"
+            >
+              <ImageIcon size={24} className="text-[var(--gray-300)]" />
+            </div>
+          ))}
+        </div>
+      </div>
 
-  if (loading || !data) {
-    return <EntryLoading />;
-  }
+      <div className="h-[1px] w-full bg-[var(--gray-100)]" />
 
-  return <EntryLoading />;
+      {/* Comments Section */}
+      <div className="flex flex-col gap-[12px] px-[24px] py-[20px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[16px] font-bold text-[var(--black)]">
+            Comments
+          </span>
+          <span className="text-[13px] text-[var(--gray-500)]">2</span>
+        </div>
+
+        <div className="flex flex-col gap-[12px]">
+          <div className="flex flex-col gap-[4px]">
+            <div className="flex items-center gap-[8px]">
+              <span className="text-[14px] font-semibold text-[var(--black)]">
+                Junho
+              </span>
+              <span className="text-[11px] text-[var(--gray-500)]">
+                3 min ago
+              </span>
+            </div>
+            <p className="text-[13px] text-[var(--gray-700)]">
+              GG! That last teamfight was insane
+            </p>
+          </div>
+        </div>
+
+        <div className="flex h-[44px] items-center justify-between rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] px-[16px]">
+          <span className="text-[14px] text-[var(--gray-500)]">
+            Write a comment...
+          </span>
+          <Send size={18} className="text-[var(--primary)]" />
+        </div>
+      </div>
+    </div>
+  );
 }
