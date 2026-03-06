@@ -1,11 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronDown } from "lucide-react";
-import { sessions, type AttendanceStatus, type Lane, type Team } from "@/lib/mock-data";
-
-const lanes: Lane[] = ["TOP", "JG", "MID", "ADC", "SUP"];
+import {
+  confirmSessionSetup,
+  fetchSessionById,
+  type AttendanceStatus,
+  type Lane,
+  type Session,
+  type Team,
+  updateAttendance,
+  updateTeamMember,
+} from "@/lib/playnote";
 
 interface SetupMember {
   id: string;
@@ -16,22 +23,158 @@ interface SetupMember {
   lane?: Lane;
 }
 
-export default function SessionSetupPage() {
-  const router = useRouter();
-  const session = sessions[0];
+const lanes: Lane[] = ["TOP", "JG", "MID", "ADC", "SUP"];
 
-  const [members] = useState<SetupMember[]>([
-    { id: "1", name: "Junho", initials: "JH", attendance: "yes", team: "A", lane: "TOP" },
-    { id: "5", name: "Minjae", initials: "MJ", attendance: "maybe", team: "B", lane: "MID" },
-    { id: "2", name: "Seungwoo", initials: "SW", attendance: "yes", team: "A", lane: "JG" },
-  ]);
+export default function SessionSetupPage() {
+  const params = useParams<{ sessionId: string }>();
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [isSaving, setIsSaving] = useState(false);
+  const sessionId = params.sessionId;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSession = async () => {
+      const nextSession = await fetchSessionById(sessionId);
+      if (!cancelled) {
+        setSession(nextSession);
+      }
+    };
+
+    void loadSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  const members = useMemo<SetupMember[]>(() => {
+    if (!session) {
+      return [];
+    }
+
+    return session.members.map((member) => ({
+      id: member.friendId,
+      name: member.name,
+      initials: buildInitials(member.name),
+      attendance: member.attendance,
+      team: member.team,
+      lane: member.lane,
+    }));
+  }, [session]);
+
+  if (session === undefined) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[var(--white)]">
+        <p className="text-[var(--gray-500)]">Loading...</p>
+      </div>
+    );
+  }
+
+  if (session === null) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[var(--white)]">
+        <p className="text-[var(--gray-500)]">No session data available</p>
+      </div>
+    );
+  }
 
   const yesCount = members.filter((m) => m.attendance === "yes").length;
   const teamA = members.filter((m) => m.team === "A");
   const teamB = members.filter((m) => m.team === "B");
 
-  const handleConfirm = () => {
-    router.push(`/s/${session.id}`);
+  const handleAttendanceChange = async (
+    member: SetupMember,
+    status: AttendanceStatus,
+  ) => {
+    if (isSaving || member.attendance === status) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updatedSession = await updateAttendance({
+        sessionId: session.id,
+        friendId: member.id,
+        status,
+      });
+      setSession(updatedSession);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddToTeam = async (team: Team) => {
+    if (isSaving) {
+      return;
+    }
+
+    const candidate =
+      members.find((member) => member.attendance === "yes" && !member.team) ??
+      members.find((member) => member.attendance === "maybe" && !member.team);
+
+    if (!candidate) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updatedSession = await updateTeamMember({
+        sessionId: session.id,
+        friendId: candidate.id,
+        team,
+        lane: candidate.lane,
+      });
+      setSession(updatedSession);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLaneCycle = async (member: SetupMember) => {
+    if (
+      isSaving ||
+      session.contentType !== "lol" ||
+      !member.team
+    ) {
+      return;
+    }
+
+    const currentIndex = member.lane ? lanes.indexOf(member.lane) : -1;
+    const nextLane = lanes[(currentIndex + 1) % lanes.length];
+
+    setIsSaving(true);
+    try {
+      const updatedSession = await updateTeamMember({
+        sessionId: session.id,
+        friendId: member.id,
+        team: member.team,
+        lane: nextLane,
+      });
+      setSession(updatedSession);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updatedSession =
+        session.status === "scheduled"
+          ? await confirmSessionSetup(session.id)
+          : session;
+
+      setSession(updatedSession);
+      router.push(`/s/${updatedSession.id}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -50,7 +193,7 @@ export default function SessionSetupPage() {
       {/* Info Bar */}
       <div className="flex w-full items-center gap-[8px] bg-[var(--primary-light)] px-[24px] py-[12px]">
         <span className="rounded-[var(--radius-full)] bg-[var(--primary)] px-[10px] py-[3px] text-[11px] font-semibold text-[var(--white)]">
-          LoL
+          {session.contentType === "lol" ? "LoL" : "Futsal"}
         </span>
         <span className="text-[14px] font-semibold text-[var(--primary)]">
           {session.title}
@@ -70,7 +213,7 @@ export default function SessionSetupPage() {
             Attendance
           </span>
           <span className="text-[14px] font-medium text-[var(--primary)]">
-            {yesCount} / {members.length + 7}
+            {yesCount} / {session.memberCount}
           </span>
         </div>
 
@@ -102,11 +245,15 @@ export default function SessionSetupPage() {
                   return (
                     <button
                       key={status}
+                      onClick={() => void handleAttendanceChange(member, status)}
+                      disabled={isSaving}
                       className={`flex h-full items-center justify-center px-[10px] text-[11px] font-semibold ${
                         active && status === "yes"
                           ? "rounded-[5px] bg-[var(--primary)] text-[var(--white)]"
                           : active && status === "maybe"
                             ? "rounded-[5px] bg-[var(--gray-500)] text-[var(--white)]"
+                            : active && status === "no"
+                              ? "rounded-[5px] bg-[var(--red)] text-[var(--white)]"
                             : "text-[var(--gray-500)]"
                       }`}
                     >
@@ -152,7 +299,11 @@ export default function SessionSetupPage() {
                 </span>
               </div>
             ))}
-            <button className="flex h-[36px] items-center justify-center rounded-[var(--radius-sm)] border border-[var(--primary)] text-[12px] font-medium text-[var(--primary)]">
+            <button
+              onClick={() => void handleAddToTeam("A")}
+              disabled={isSaving}
+              className="flex h-[36px] items-center justify-center rounded-[var(--radius-sm)] border border-[var(--primary)] text-[12px] font-medium text-[var(--primary)]"
+            >
               + Add
             </button>
           </div>
@@ -175,7 +326,11 @@ export default function SessionSetupPage() {
                 </span>
               </div>
             ))}
-            <button className="flex h-[36px] items-center justify-center rounded-[var(--radius-sm)] border border-[var(--red)] text-[12px] font-medium text-[var(--red)]">
+            <button
+              onClick={() => void handleAddToTeam("B")}
+              disabled={isSaving}
+              className="flex h-[36px] items-center justify-center rounded-[var(--radius-sm)] border border-[var(--red)] text-[12px] font-medium text-[var(--red)]"
+            >
               + Add
             </button>
           </div>
@@ -218,12 +373,16 @@ export default function SessionSetupPage() {
                   {m.name}
                 </span>
               </div>
-              <div className="flex h-[32px] w-[90px] items-center justify-between rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] px-[10px]">
+              <button
+                onClick={() => void handleLaneCycle(m)}
+                disabled={isSaving || session.contentType !== "lol" || !m.team}
+                className="flex h-[32px] w-[90px] items-center justify-between rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] px-[10px]"
+              >
                 <span className="text-[13px] font-semibold text-[var(--black)]">
                   {m.lane ?? "—"}
                 </span>
                 <ChevronDown size={14} className="text-[var(--gray-500)]" />
-              </div>
+              </button>
             </div>
           ))}
         </div>
@@ -232,7 +391,8 @@ export default function SessionSetupPage() {
       {/* Button Area */}
       <div className="px-[24px] pt-[24px] pb-[32px]">
         <button
-          onClick={handleConfirm}
+          onClick={() => void handleConfirm()}
+          disabled={isSaving}
           className="flex h-[52px] w-full items-center justify-center gap-[8px] rounded-[var(--radius-md)] bg-[var(--primary)] text-[16px] font-bold text-[var(--white)]"
         >
           <Check size={20} />
@@ -241,4 +401,13 @@ export default function SessionSetupPage() {
       </div>
     </div>
   );
+}
+
+function buildInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 }

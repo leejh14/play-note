@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Calendar, Users, Swords, Image } from "lucide-react";
-import type { Session } from "@/lib/mock-data";
+import type { Session } from "@/lib/playnote";
 
 const statusStyle: Record<string, { bg: string; text: string }> = {
   confirmed: { bg: "bg-[var(--primary-light)]", text: "text-[var(--primary)]" },

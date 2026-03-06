@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus,
   Search,
@@ -9,11 +9,29 @@ import {
   Undo2,
 } from "lucide-react";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
-import { friends } from "@/lib/mock-data";
+import { fetchFriends, type Friend } from "@/lib/playnote";
 
 export default function FriendsPage() {
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFriends = async () => {
+      const nextFriends = await fetchFriends();
+      if (!cancelled) {
+        setFriends(nextFriends);
+      }
+    };
+
+    void loadFriends();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeFriends = friends.filter((f) => !f.archived);
   const archivedFriends = friends.filter((f) => f.archived);

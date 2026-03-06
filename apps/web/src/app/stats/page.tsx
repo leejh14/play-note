@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
-import { friendStats } from "@/lib/mock-data";
+import { fetchStatsOverview, type FriendStat } from "@/lib/playnote";
 
 const laneColors: Record<string, string> = {
   MID: "bg-[var(--primary)]",
@@ -13,6 +14,25 @@ const laneColors: Record<string, string> = {
 };
 
 export default function StatsOverviewPage() {
+  const [friendStats, setFriendStats] = useState<FriendStat[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStats = async () => {
+      const nextStats = await fetchStatsOverview();
+      if (!cancelled) {
+        setFriendStats(nextStats);
+      }
+    };
+
+    void loadStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="flex h-full flex-col bg-[var(--white)]">
       {/* Header */}

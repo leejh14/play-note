@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Gamepad2, CircleDot, Calendar, Clock } from "lucide-react";
-import type { ContentType } from "@/lib/mock-data";
+import { createSession, type ContentType } from "@/lib/playnote";
 
 export default function NewSessionPage() {
   const router = useRouter();
@@ -11,9 +11,27 @@ export default function NewSessionPage() {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("2026-03-01");
   const [time, setTime] = useState("19:00");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreate = () => {
-    router.push("/s/s1/setup");
+  const handleCreate = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const startsAt = new Date(`${date}T${time}:00`);
+      const { sessionId } = await createSession({
+        contentType,
+        title,
+        startsAt,
+      });
+
+      router.push(`/s/${sessionId}/setup`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -159,6 +177,7 @@ export default function NewSessionPage() {
       <div className="px-[24px] pt-[16px] pb-[32px]">
         <button
           onClick={handleCreate}
+          disabled={isSubmitting}
           className="flex h-[52px] w-full items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary)] text-[16px] font-bold text-[var(--white)]"
         >
           Create Session

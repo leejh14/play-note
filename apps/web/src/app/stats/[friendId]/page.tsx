@@ -1,12 +1,48 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown } from "lucide-react";
-import { junhoDetailStat } from "@/lib/mock-data";
+import { fetchStatsDetail, type FriendDetailStat } from "@/lib/playnote";
 
 export default function FriendStatsPage() {
+  const params = useParams<{ friendId: string }>();
   const router = useRouter();
-  const stat = junhoDetailStat;
+  const [stat, setStat] = useState<FriendDetailStat | null | undefined>(undefined);
+  const friendId = params.friendId;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDetail = async () => {
+      const nextStat = await fetchStatsDetail(friendId);
+      if (!cancelled) {
+        setStat(nextStat);
+      }
+    };
+
+    void loadDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [friendId]);
+
+  if (stat === undefined) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[var(--gray-100)]">
+        <p className="text-[var(--gray-500)]">Loading...</p>
+      </div>
+    );
+  }
+
+  if (stat === null) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[var(--gray-100)]">
+        <p className="text-[var(--gray-500)]">No statistics available</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-[var(--gray-100)]">

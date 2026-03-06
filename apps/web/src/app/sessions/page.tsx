@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { NotebookPen, Settings, Plus } from "lucide-react";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { SessionCard } from "@/components/session/session-card";
-import { sessions } from "@/lib/mock-data";
-import type { ContentType } from "@/lib/mock-data";
+import { fetchStoredSessions, type ContentType, type Session } from "@/lib/playnote";
 
 type FilterTab = "all" | ContentType;
 
@@ -17,7 +16,25 @@ const filterTabs: { key: FilterTab; label: string }[] = [
 ];
 
 export default function SessionListPage() {
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSessions = async () => {
+      const nextSessions = await fetchStoredSessions();
+      if (!cancelled) {
+        setSessions(nextSessions);
+      }
+    };
+
+    void loadSessions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered =
     activeTab === "all"

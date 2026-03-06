@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Share2,
@@ -12,13 +14,94 @@ import {
   Send,
 } from "lucide-react";
 import Link from "next/link";
-import { sessions } from "@/lib/mock-data";
+import {
+  createMatchFromPreset,
+  fetchSessionById,
+  saveSessionToken,
+  type Session,
+} from "@/lib/playnote";
+
+const contentTypeLabel: Record<Session["contentType"], string> = {
+  lol: "LoL",
+  futsal: "Futsal",
+};
+
+const statusLabel: Record<Session["status"], string> = {
+  confirmed: "Confirmed",
+  scheduled: "Scheduled",
+  done: "Done",
+};
 
 export default function SessionDetailPage() {
   const router = useRouter();
-  const params = useParams();
-  const session = sessions.find((s) => s.id === params.sessionId) ?? sessions[0];
+  const params = useParams<{ sessionId: string }>();
+  const searchParams = useSearchParams();
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [isCreatingMatch, setIsCreatingMatch] = useState(false);
+  const sessionId = params.sessionId;
+  const token = searchParams.get("t");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSession = async () => {
+      if (token) {
+        saveSessionToken(sessionId, token);
+      }
+
+      const nextSession = await fetchSessionById(sessionId);
+      if (!cancelled) {
+        setSession(nextSession);
+      }
+    };
+
+    void loadSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, token]);
+
+  if (session === undefined) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[var(--white)]">
+        <p className="text-[var(--gray-500)]">Loading...</p>
+      </div>
+    );
+  }
+
+  if (session === null) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[var(--white)]">
+        <p className="text-[var(--gray-500)]">No session data available</p>
+      </div>
+    );
+  }
+
   const match = session.matches[0];
+  const firstComment = session.comments[0];
+  const attendingCount = session.members.filter((member) => member.attendance === "yes").length;
+  const undecidedCount = session.members.filter((member) => member.attendance !== "yes").length;
+  const winningLabel =
+    !match || !match.winnerTeam
+      ? "Winner not decided"
+      : match.winnerTeam === "A"
+        ? "Team A"
+        : "Team B";
+
+  const handleCreateMatch = async () => {
+    if (isCreatingMatch) {
+      return;
+    }
+
+    setIsCreatingMatch(true);
+    try {
+      await createMatchFromPreset(session.id);
+      router.push(`/s/${session.id}/detail`);
+    } finally {
+      setIsCreatingMatch(false);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-[var(--white)]">
@@ -34,7 +117,7 @@ export default function SessionDetailPage() {
         </div>
         <div className="flex items-center gap-[8px]">
           <span className="rounded-[var(--radius-full)] bg-[var(--primary-light)] px-[10px] py-[3px] text-[11px] font-semibold text-[var(--primary)]">
-            LoL
+            {contentTypeLabel[session.contentType]}
           </span>
           <h1 className="text-[22px] font-bold text-[var(--black)]">
             {session.title}
@@ -46,7 +129,7 @@ export default function SessionDetailPage() {
             {session.date} {session.time}
           </span>
           <span className="rounded-[var(--radius-full)] bg-[var(--primary-light)] px-[10px] py-[4px] text-[11px] font-semibold text-[var(--primary)]">
-            Confirmed
+            {statusLabel[session.status]}
           </span>
         </div>
       </div>
@@ -94,9 +177,7 @@ export default function SessionDetailPage() {
           </div>
         </div>
         <span className="text-[12px] text-[var(--gray-500)]">
-          {session.members.filter((m) => m.attendance === "yes").length}{" "}
-          attending · {session.members.filter((m) => m.attendance !== "yes").length}{" "}
-          not decided
+          {attendingCount} attending · {undecidedCount} not decided
         </span>
       </div>
 
@@ -106,7 +187,11 @@ export default function SessionDetailPage() {
           <span className="text-[16px] font-bold text-[var(--black)]">
             Matches
           </span>
-          <button className="flex items-center gap-[4px] rounded-[var(--radius-full)] border border-[var(--primary)] px-[12px] py-[6px]">
+          <button
+            onClick={() => void handleCreateMatch()}
+            disabled={isCreatingMatch}
+            className="flex items-center gap-[4px] rounded-[var(--radius-full)] border border-[var(--primary)] px-[12px] py-[6px]"
+          >
             <Plus size={14} className="text-[var(--primary)]" />
             <span className="text-[12px] font-semibold text-[var(--primary)]">
               New Match
@@ -121,18 +206,22 @@ export default function SessionDetailPage() {
                 Match #{match.number}
               </span>
               <span className="text-[11px] font-semibold text-[var(--primary)]">
-                Completed
+                {match.status === "completed" ? "Completed" : "In Progress"}
               </span>
             </div>
             <div className="flex items-center justify-between text-[13px]">
               <span className="font-medium text-[var(--primary)]">
-                Team A (Blue)
+                {winningLabel}
               </span>
-              <span className="font-bold text-[var(--primary)]">WIN</span>
+              <span className="font-bold text-[var(--primary)]">
+                {match.winnerTeam ? "WIN" : "PENDING"}
+              </span>
             </div>
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-[var(--gray-700)]">End Screen</span>
-              <span className="text-[var(--primary)]">OCR Done</span>
+              <span className="text-[var(--primary)]">
+                {match.ocrDone ? "OCR Done" : "OCR Pending"}
+              </span>
             </div>
             {match.endScreenFile && (
               <span className="text-[12px] text-[var(--gray-500)]">
@@ -187,23 +276,31 @@ export default function SessionDetailPage() {
           <span className="text-[16px] font-bold text-[var(--black)]">
             Comments
           </span>
-          <span className="text-[13px] text-[var(--gray-500)]">2</span>
+          <span className="text-[13px] text-[var(--gray-500)]">
+            {session.comments.length}
+          </span>
         </div>
 
         <div className="flex flex-col gap-[12px]">
-          <div className="flex flex-col gap-[4px]">
-            <div className="flex items-center gap-[8px]">
-              <span className="text-[14px] font-semibold text-[var(--black)]">
-                Junho
-              </span>
-              <span className="text-[11px] text-[var(--gray-500)]">
-                3 min ago
-              </span>
+          {firstComment ? (
+            <div className="flex flex-col gap-[4px]">
+              <div className="flex items-center gap-[8px]">
+                <span className="text-[14px] font-semibold text-[var(--black)]">
+                  {firstComment.displayName}
+                </span>
+                <span className="text-[11px] text-[var(--gray-500)]">
+                  {firstComment.createdAtLabel}
+                </span>
+              </div>
+              <p className="text-[13px] text-[var(--gray-700)]">
+                {firstComment.body}
+              </p>
             </div>
-            <p className="text-[13px] text-[var(--gray-700)]">
-              GG! That last teamfight was insane
+          ) : (
+            <p className="text-[13px] text-[var(--gray-500)]">
+              No comments yet
             </p>
-          </div>
+          )}
         </div>
 
         <div className="flex h-[44px] items-center justify-between rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] px-[16px]">
