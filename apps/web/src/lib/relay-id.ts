@@ -1,17 +1,17 @@
 const SESSION_PATH_PREFIX = "/s/";
 
 function encodeBase64(value: string): string {
-  if (typeof window !== "undefined") {
-    return window.btoa(value);
+  if (typeof globalThis.btoa === "function") {
+    return globalThis.btoa(value);
   }
-  return Buffer.from(value, "utf-8").toString("base64");
+  throw new Error("Base64 encode is not available in this environment.");
 }
 
 function decodeBase64(value: string): string {
-  if (typeof window !== "undefined") {
-    return window.atob(value);
+  if (typeof globalThis.atob === "function") {
+    return globalThis.atob(value);
   }
-  return Buffer.from(value, "base64").toString("utf-8");
+  throw new Error("Base64 decode is not available in this environment.");
 }
 
 export function toGlobalId(typeName: string, localId: string): string {

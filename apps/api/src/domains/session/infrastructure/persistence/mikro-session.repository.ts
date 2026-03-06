@@ -56,6 +56,7 @@ export class MikroSessionRepository implements ISessionRepository {
     const cursor = await this.em.findByCursor(SessionOrmEntity, where, cursorOpts);
 
     const items = cursor.items as SessionOrmEntity[];
+    await this.em.populate(items, ['attendances', 'teamPresetMembers']);
     const sessions = items.map((o) => this.toDomainEntity(o));
 
     const edges = sessions.map((s, i) => new EdgeDto({
@@ -75,7 +76,11 @@ export class MikroSessionRepository implements ISessionRepository {
 
   async save(session: Session): Promise<void> {
     const orm = this.toOrmEntity(session);
-    const existing = await this.em.findOne(SessionOrmEntity, { id: session.id });
+    const existing = await this.em.findOne(
+      SessionOrmEntity,
+      { id: session.id },
+      { populate: ['attendances', 'teamPresetMembers'] },
+    );
     if (existing) {
       existing.contentType = orm.contentType;
       existing.title = orm.title;

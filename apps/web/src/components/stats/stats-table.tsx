@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 
 export type StatsTableRow = {
   readonly rank: number;
@@ -15,12 +16,12 @@ export function StatsTable({
   readonly rows: readonly StatsTableRow[];
 }) {
   return (
-    <div className="flex flex-col">
+    <Card className="overflow-hidden rounded-[14px] shadow-[var(--pn-shadow-soft)]">
       {rows.map((r) => (
         <Link
           key={r.friendId}
           href={`/stats/${r.friendId}`}
-          className="grid grid-cols-[1fr_64px_64px_64px] items-center gap-[8px] border-b border-[var(--pn-border)] py-[12px]"
+          className="grid grid-cols-[1fr_64px_64px_64px] items-center gap-[8px] border-b border-[rgba(15,23,42,0.06)] px-[10px] py-[12px] last:border-b-0"
         >
           <div className="flex items-center gap-[10px]">
             <div className="w-[16px] text-[11px] font-[800] text-[var(--pn-text-muted)]">
@@ -41,6 +42,6 @@ export function StatsTable({
           </div>
         </Link>
       ))}
-    </div>
+    </Card>
   );
 }

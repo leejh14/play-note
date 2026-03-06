@@ -13,7 +13,7 @@ export function PageHeader({
   readonly right?: ReactNode;
 }) {
   return (
-    <div className="relative flex h-[44px] items-center justify-center px-[12px]">
+    <div className="relative flex h-[48px] items-center justify-center border-b border-[rgba(15,23,42,0.06)] bg-[rgba(255,255,255,0.96)] px-[12px]">
       <div className="absolute left-[8px] top-1/2 -translate-y-1/2">
         {backHref ? (
           <Link href={backHref} aria-label="Back">
@@ -23,7 +23,7 @@ export function PageHeader({
           </Link>
         ) : null}
       </div>
-      <div className="text-[15px] font-[600] text-[var(--pn-text-primary)]">
+      <div className="text-[15px] font-[800] tracking-[-0.2px] text-[var(--pn-text-primary)]">
         {title}
       </div>
       <div className="absolute right-[8px] top-1/2 -translate-y-1/2">

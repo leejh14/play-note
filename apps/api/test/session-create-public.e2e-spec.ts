@@ -14,6 +14,7 @@ import { graphql, GraphQLSchema } from 'graphql';
 import { SessionTokenGuard } from '@auth/guards/session-token.guard';
 import { SessionTokenService } from '@auth/services/session-token.service';
 import { GraphQLExceptionFilter } from '@shared/presentation/filters/graphql-exception.filter';
+import { JSONScalar } from '@shared/presentation/graphql/scalars/json.scalar';
 import { SessionMutationResolver } from '@domains/session/presentation/resolvers/mutations/session.mutation.resolver';
 import { CreateSessionUseCase } from '@domains/session/application/use-cases/commands/create-session.use-case';
 import { ConfirmSessionUseCase } from '@domains/session/application/use-cases/commands/confirm-session.use-case';
@@ -99,6 +100,7 @@ describe('CreateSession public mutation (e2e)', () => {
         }),
       ],
       providers: [
+        JSONScalar,
         SessionMutationResolver,
         SessionCreatePublicProbeResolver,
         { provide: CreateSessionUseCase, useValue: createSessionUseCase },

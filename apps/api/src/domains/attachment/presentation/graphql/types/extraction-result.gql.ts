@@ -1,6 +1,5 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
+import { Field, GraphQLISODateTime, ID, ObjectType } from '@nestjs/graphql';
 import { ExtractionStatus } from '@domains/attachment/domain/enums/extraction-status.enum';
-import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
 import { JSONScalar } from '@shared/presentation/graphql/scalars/json.scalar';
 import { toGlobalId } from '@libs/relay';
 
@@ -22,6 +21,6 @@ export class ExtractionResult {
   @Field(() => JSONScalar, { nullable: true })
   result!: Record<string, unknown> | null;
 
-  @Field(() => DateTimeScalar, { nullable: false })
+  @Field(() => GraphQLISODateTime, { nullable: false })
   createdAt!: Date;
 }

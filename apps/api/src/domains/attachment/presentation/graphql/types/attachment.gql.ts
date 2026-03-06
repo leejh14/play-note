@@ -1,7 +1,6 @@
-import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
+import { Field, GraphQLISODateTime, ID, Int, ObjectType } from '@nestjs/graphql';
 import { AttachmentScope } from '@domains/attachment/domain/enums/attachment-scope.enum';
 import { AttachmentType } from '@domains/attachment/domain/enums/attachment-type.enum';
-import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
 import { ExtractionResult } from './extraction-result.gql';
 
 @ObjectType('Attachment')
@@ -41,6 +40,6 @@ export class Attachment {
   @Field(() => ExtractionResult, { nullable: true })
   extractionResult?: ExtractionResult | null;
 
-  @Field(() => DateTimeScalar, { nullable: false })
+  @Field(() => GraphQLISODateTime, { nullable: false })
   createdAt!: Date;
 }

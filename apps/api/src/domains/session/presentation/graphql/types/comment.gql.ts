@@ -1,5 +1,4 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
-import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
+import { Field, GraphQLISODateTime, ID, ObjectType } from '@nestjs/graphql';
 
 @ObjectType('Comment')
 export class Comment {
@@ -14,6 +13,6 @@ export class Comment {
   @Field(() => String, { nullable: true })
   displayName!: string | null;
 
-  @Field(() => DateTimeScalar, { nullable: false })
+  @Field(() => GraphQLISODateTime, { nullable: false })
   createdAt!: Date;
 }

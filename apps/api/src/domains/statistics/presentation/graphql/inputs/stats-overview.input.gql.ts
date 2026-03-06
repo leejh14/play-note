@@ -1,14 +1,13 @@
-import { Field, InputType } from '@nestjs/graphql';
+import { Field, GraphQLISODateTime, InputType } from '@nestjs/graphql';
 import { IsBoolean, IsOptional } from 'class-validator';
-import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
 
 @InputType('StatsOverviewInput')
 export class StatsOverviewInput {
-  @Field(() => DateTimeScalar, { nullable: true })
+  @Field(() => GraphQLISODateTime, { nullable: true })
   @IsOptional()
   startDate?: Date;
 
-  @Field(() => DateTimeScalar, { nullable: true })
+  @Field(() => GraphQLISODateTime, { nullable: true })
   @IsOptional()
   endDate?: Date;
 

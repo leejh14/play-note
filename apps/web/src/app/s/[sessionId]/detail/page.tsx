@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 import { useParams } from "next/navigation";
+import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { PhoneFrame } from "@/components/layout/phone-frame";
-import { StatusBar } from "@/components/layout/status-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { UploadProgress, type UploadProgressItem } from "@/components/upload/upload-progress";
@@ -101,7 +104,7 @@ function SectionTitle({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <div className="text-[13px] font-[800] text-[var(--pn-text-primary)]">{title}</div>
+      <div className="text-[14px] font-[800] text-[var(--pn-text-primary)]">{title}</div>
       {right}
     </div>
   );
@@ -128,6 +131,33 @@ function toStatusMeta(status: FieldUpdateStatus | undefined): {
     label: "저장 실패",
     className: "text-[var(--pn-pink)]",
   };
+}
+
+function DetailPageShell({
+  children,
+  title,
+  backHref,
+  right,
+}: {
+  readonly children: ReactNode;
+  readonly title: string;
+  readonly backHref: string;
+  readonly right?: ReactNode;
+}) {
+  return (
+    <PhoneFrame>
+      <div className="flex min-h-screen w-full">
+        <BottomTabBar mode="side" />
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <div className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col">
+            <PageHeader title={title} backHref={backHref} right={right} />
+            {children}
+          </div>
+          <BottomTabBar mode="bottom" />
+        </div>
+      </div>
+    </PhoneFrame>
+  );
 }
 
 function uploadFileWithProgress(input: {
@@ -359,13 +389,21 @@ export default function SessionDetailPage() {
         },
       },
       refetchQueries: [{ query: SESSION_QUERY, variables: { sessionId: sessionGlobalId } }],
+      awaitRefetchQueries: true,
     });
   };
 
   const onConfirmDeleteMatch = async () => {
     if (!pendingDeleteMatch) return;
-    await onDeleteMatch(pendingDeleteMatch.matchId);
-    setPendingDeleteMatch(null);
+    try {
+      await onDeleteMatch(pendingDeleteMatch.matchId);
+      setPendingDeleteMatch(null);
+    } catch {
+      showToast({
+        message: "매치 삭제에 실패했습니다. 다시 시도해주세요.",
+        tone: "error",
+      });
+    }
   };
 
   const onCreateComment = async () => {
@@ -529,47 +567,35 @@ export default function SessionDetailPage() {
 
   if (!hasToken) {
     return (
-      <PhoneFrame>
-        <div className="flex min-h-screen flex-col">
-          <StatusBar />
-          <PageHeader title="Session Detail" backHref="/sessions" />
-          <div className="flex flex-1 items-center px-[16px]">
-            <TokenRequiredState />
-          </div>
+      <DetailPageShell title="Session Detail" backHref="/sessions">
+        <div className="flex flex-1 items-center px-[16px] sm:px-[20px] lg:px-[28px]">
+          <TokenRequiredState />
         </div>
-      </PhoneFrame>
+      </DetailPageShell>
     );
   }
 
   if (sessionQuery.error) {
     return (
-      <PhoneFrame>
-        <div className="flex min-h-screen flex-col">
-          <StatusBar />
-          <PageHeader title="Session Detail" backHref="/sessions" />
-          <div className="flex-1 px-[16px] pt-[16px]">
-            <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
-              {getGraphqlErrorMessage(
-                sessionQuery.error.graphQLErrors[0]?.extensions?.code as string | undefined,
-              )}
-            </div>
+      <DetailPageShell title="Session Detail" backHref="/sessions">
+        <div className="flex-1 px-[16px] pt-[16px] sm:px-[20px] lg:px-[28px]">
+          <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
+            {getGraphqlErrorMessage(
+              sessionQuery.error.graphQLErrors[0]?.extensions?.code as string | undefined,
+            )}
           </div>
         </div>
-      </PhoneFrame>
+      </DetailPageShell>
     );
   }
 
   if (sessionQuery.loading || !session) {
     return (
-      <PhoneFrame>
-        <div className="flex min-h-screen flex-col">
-          <StatusBar />
-          <PageHeader title="Session Detail" backHref="/sessions" />
-          <div className="flex flex-1 items-center justify-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
-            불러오는 중...
-          </div>
+      <DetailPageShell title="Session Detail" backHref="/sessions">
+        <div className="flex flex-1 items-center justify-center px-[16px] text-[12px] font-[600] text-[var(--pn-text-muted)] sm:px-[20px] lg:px-[28px]">
+          불러오는 중...
         </div>
-      </PhoneFrame>
+      </DetailPageShell>
     );
   }
 
@@ -584,40 +610,46 @@ export default function SessionDetailPage() {
     completeUploadsState.loading;
 
   return (
-    <PhoneFrame>
-      <div className="flex min-h-screen flex-col">
-        <StatusBar />
-        <PageHeader
-          title={session.title || "Session Detail"}
-          backHref={`/s/${encodeURIComponent(session.id)}`}
-          right={
-            shareToken ? (
-              <ShareButtons
-                sessionId={session.id}
-                token={shareToken}
-                contentType={session.contentType}
-                startsAt={session.startsAt}
-                attendingCount={session.attendances.filter((item) => item.status === "ATTENDING").length}
-                totalCount={session.attendances.length}
-                title={session.title}
-              />
-            ) : undefined
-          }
-        />
-
-        <div className="px-[16px]">
-          <div className="flex items-center gap-[10px]">
-            <div className="text-[11px] font-[600] text-[var(--pn-text-muted)]">
-              {new Date(session.startsAt).toLocaleString("ko-KR")}
+    <DetailPageShell
+      title={session.title || "Session Detail"}
+      backHref={`/s/${encodeURIComponent(session.id)}`}
+      right={
+        shareToken ? (
+          <ShareButtons
+            sessionId={session.id}
+            token={shareToken}
+            contentType={session.contentType}
+            startsAt={session.startsAt}
+            attendingCount={session.attendances.filter((item) => item.status === "ATTENDING").length}
+            totalCount={session.attendances.length}
+            title={session.title}
+          />
+        ) : undefined
+      }
+    >
+      <div className="px-[16px] pt-[10px] sm:px-[20px] lg:px-[28px]">
+          <div className="rounded-[12px] border border-[rgba(33,150,243,0.18)] bg-[var(--pn-primary-light)] px-[12px] py-[10px]">
+            <div className="flex items-center gap-[8px]">
+              <Badge tone={session.status === "CONFIRMED" ? "blueSoft" : "neutral"}>
+                {session.contentType === "LOL" ? "LoL" : "Futsal"}
+              </Badge>
+              <div className="text-[12px] font-[800] text-[var(--pn-primary)]">
+                {session.title || "Session Detail"}
+              </div>
             </div>
-            <Badge tone={session.status === "CONFIRMED" ? "blueSoft" : "neutral"}>
-              {session.status}
-            </Badge>
-            {session.effectiveLocked ? <Badge tone="pinkSoft">Locked</Badge> : null}
+            <div className="mt-[6px] flex items-center gap-[8px]">
+              <div className="text-[11px] font-[600] text-[var(--pn-text-muted)]">
+                {new Date(session.startsAt).toLocaleString("ko-KR")}
+              </div>
+              <Badge tone={session.status === "CONFIRMED" ? "blueSoft" : "neutral"}>
+                {session.status}
+              </Badge>
+              {session.effectiveLocked ? <Badge tone="pinkSoft">Locked</Badge> : null}
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px]">
+      <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px] sm:px-[20px] lg:px-[28px]">
           <div className="flex flex-col gap-[14px]">
             <div className="flex flex-col gap-[10px]">
               <SectionTitle title="Setup" />
@@ -661,14 +693,19 @@ export default function SessionDetailPage() {
                   </Button>
                 }
               />
+              {session.matches.length === 0 ? (
+                <Card className="rounded-[14px] px-[12px] py-[14px] text-[11px] font-[600] text-[var(--pn-text-muted)]">
+                  아직 생성된 매치가 없습니다. + New Match로 시작하세요.
+                </Card>
+              ) : null}
               {session.matches.map((match) => (
                 <MatchCard key={match.id}>
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex items-center gap-[8px]">
                       <div className="text-[12px] font-[800] text-[var(--pn-text-primary)]">
                         Match #{match.matchNo}
                       </div>
-                      <div className="mt-[4px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
+                      <div className="rounded-full bg-[rgba(15,23,42,0.05)] px-[8px] py-[2px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
                         {match.status}
                       </div>
                     </div>
@@ -688,10 +725,10 @@ export default function SessionDetailPage() {
                     ) : null}
                   </div>
 
-                  <div className="mt-[8px] flex gap-[8px]">
+                  <div className="mt-[10px] flex gap-[8px]">
                     <Button
                       variant="secondary"
-                      className="h-[28px] rounded-[8px] px-[8px] text-[10px]"
+                      className="h-[30px] rounded-[8px] px-[10px] text-[10px]"
                       disabled={busy}
                       onClick={() => onConfirmResult(match.id, "BLUE")}
                     >
@@ -699,7 +736,7 @@ export default function SessionDetailPage() {
                     </Button>
                     <Button
                       variant="secondary"
-                      className="h-[28px] rounded-[8px] px-[8px] text-[10px]"
+                      className="h-[30px] rounded-[8px] px-[10px] text-[10px]"
                       disabled={busy}
                       onClick={() => onConfirmResult(match.id, "RED")}
                     >
@@ -716,13 +753,18 @@ export default function SessionDetailPage() {
                       const isChampionDirty =
                         championValue.trim() !== (member.champion ?? "").trim();
                       return (
-                        <div key={key} className="flex flex-col gap-[4px]">
+                        <div key={key} className="flex flex-col gap-[4px] border-b border-[rgba(15,23,42,0.06)] pb-[8px] last:border-b-0 last:pb-0">
                           <div className="flex items-center gap-[8px]">
-                            <div className="w-[80px] text-[11px] font-[700] text-[var(--pn-text-primary)]">
-                              {member.friend.displayName}
+                            <div className="flex w-[92px] items-center gap-[8px]">
+                              <div className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[var(--pn-primary-light)] text-[10px] font-[800] text-[var(--pn-primary)]">
+                                {member.friend.displayName.slice(0, 1).toUpperCase()}
+                              </div>
+                              <div className="truncate text-[11px] font-[700] text-[var(--pn-text-primary)]">
+                                {member.friend.displayName}
+                              </div>
                             </div>
-                            <select
-                              className="h-[28px] rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[700] text-[var(--pn-text-secondary)] outline-none"
+                            <Select
+                              className="h-[30px] rounded-[8px] px-[8px] text-[10px]"
                               value={member.lane}
                               disabled={busy}
                               onChange={(event) =>
@@ -734,9 +776,9 @@ export default function SessionDetailPage() {
                                   {lane}
                                 </option>
                               ))}
-                            </select>
-                            <input
-                              className="h-[28px] flex-1 rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[600] text-[var(--pn-text-primary)] outline-none"
+                            </Select>
+                            <Input
+                              className="h-[30px] flex-1 rounded-[8px] px-[8px] text-[10px] font-[600]"
                               value={championValue}
                               placeholder="Champion"
                               onChange={(event) =>
@@ -763,7 +805,7 @@ export default function SessionDetailPage() {
                             />
                             <Button
                               variant="secondary"
-                              className="h-[28px] rounded-[8px] px-[8px] text-[10px]"
+                              className="h-[30px] rounded-[8px] px-[8px] text-[10px]"
                               disabled={!isChampionDirty || busy}
                               onClick={() => onSaveChampion(match.id, member.friend.id)}
                             >
@@ -812,15 +854,16 @@ export default function SessionDetailPage() {
                   </Button>
                 }
               />
-              <div className="rounded-[10px] border border-[var(--pn-border)] bg-white px-[10px] py-[10px]">
+              <Card className="rounded-[14px] px-[10px] py-[10px] shadow-[var(--pn-shadow-soft)]">
                 {session.contentType === "LOL" ? (
                   session.matches.length > 0 ? (
                     <div className="mb-[8px] flex items-center gap-[8px]">
                       <span className="text-[10px] font-[700] text-[var(--pn-text-muted)]">
                         Target
                       </span>
-                      <select
-                        className="h-[28px] flex-1 rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[700] text-[var(--pn-text-secondary)] outline-none"
+                      <Select
+                        className="h-[28px] flex-1 rounded-[8px] px-[8px] text-[10px]"
+                        uiSize="sm"
                         value={uploadTargetMatchId ?? ""}
                         onChange={(event) => setUploadTargetMatchId(event.target.value || null)}
                       >
@@ -829,7 +872,7 @@ export default function SessionDetailPage() {
                             Match #{match.matchNo}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                   ) : (
                     <div className="mb-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
@@ -841,7 +884,7 @@ export default function SessionDetailPage() {
                     Session photos 업로드
                   </div>
                 )}
-                <input
+                <Input
                   type="file"
                   multiple
                   accept="image/*"
@@ -849,7 +892,7 @@ export default function SessionDetailPage() {
                     onSelectFiles(Array.from(event.currentTarget.files ?? []))
                   }
                   disabled={busy}
-                  className="w-full text-[10px] font-[600] text-[var(--pn-text-secondary)]"
+                  className="h-auto w-full border-0 px-0 py-[2px] text-[10px] font-[600] text-[var(--pn-text-secondary)] shadow-none focus-visible:border-0"
                 />
                 {pendingFiles.length > 0 ? (
                   <div className="mt-[6px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
@@ -857,15 +900,15 @@ export default function SessionDetailPage() {
                   </div>
                 ) : null}
                 <UploadProgress items={uploadProgressItems} />
-              </div>
-              <div className="grid grid-cols-4 gap-[8px]">
+              </Card>
+              <div className="grid grid-cols-3 gap-[8px]">
                 {allAttachments.map((attachment) => (
                   <a
                     key={attachment.id}
                     href={attachment.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-[66px] flex-col items-center justify-center rounded-[10px] bg-[var(--pn-bg-card)] text-[10px] font-[700] text-[var(--pn-text-secondary)]"
+                    className="flex h-[82px] flex-col items-center justify-center rounded-[10px] border border-[rgba(15,23,42,0.06)] bg-[var(--pn-bg-card)] text-[10px] font-[700] text-[var(--pn-text-secondary)]"
                   >
                     <span>{attachment.label}</span>
                     <span className="text-[9px]">View</span>
@@ -876,51 +919,52 @@ export default function SessionDetailPage() {
 
             <div className="flex flex-col gap-[10px]">
               <SectionTitle title="Comments" />
-              {session.comments.map((comment) => (
-                <div key={comment.id}>
-                  <div className="text-[11px] font-[700] text-[var(--pn-text-primary)]">
-                    {comment.displayName || "Anonymous"}
-                    <span className="ml-[6px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
-                      {new Date(comment.createdAt).toLocaleString("ko-KR")}
-                    </span>
+              <Card className="rounded-[14px] px-[12px] py-[10px] shadow-[var(--pn-shadow-soft)]">
+                {session.comments.map((comment) => (
+                  <div key={comment.id} className="border-b border-[rgba(15,23,42,0.06)] py-[8px] last:border-b-0">
+                    <div className="text-[11px] font-[700] text-[var(--pn-text-primary)]">
+                      {comment.displayName || "Anonymous"}
+                      <span className="ml-[6px] text-[10px] font-[600] text-[var(--pn-text-muted)]">
+                        {new Date(comment.createdAt).toLocaleString("ko-KR")}
+                      </span>
+                    </div>
+                    <div className="text-[11px] font-[500] text-[var(--pn-text-secondary)]">
+                      {comment.body}
+                    </div>
                   </div>
-                  <div className="text-[11px] font-[500] text-[var(--pn-text-secondary)]">
-                    {comment.body}
-                  </div>
+                ))}
+                <div className="mt-[8px] flex items-center gap-[8px] rounded-[12px] border border-[var(--pn-border)] bg-white px-[8px] py-[8px]">
+                  <Input
+                    value={commentBody}
+                    onChange={(event) => setCommentBody(event.target.value)}
+                    placeholder="Write a comment..."
+                    className="h-[30px] flex-1 border-0 bg-transparent px-[6px] text-[12px] shadow-none focus-visible:border-0"
+                  />
+                  <Button
+                    className="h-[30px] rounded-[8px] px-[10px] text-[11px]"
+                    disabled={!commentBody.trim() || busy}
+                    onClick={onCreateComment}
+                  >
+                    Send
+                  </Button>
                 </div>
-              ))}
-              <div className="flex items-center gap-[8px] rounded-[12px] border border-[var(--pn-border)] bg-white px-[8px] py-[8px]">
-                <input
-                  value={commentBody}
-                  onChange={(event) => setCommentBody(event.target.value)}
-                  placeholder="Write a comment..."
-                  className="h-[30px] flex-1 bg-transparent px-[6px] text-[12px] text-[var(--pn-text-primary)] outline-none"
-                />
-                <Button
-                  className="h-[30px] rounded-[8px] px-[10px] text-[11px]"
-                  disabled={!commentBody.trim() || busy}
-                  onClick={onCreateComment}
-                >
-                  Send
-                </Button>
-              </div>
+              </Card>
             </div>
           </div>
-        </div>
-        <ConfirmDialog
-          open={Boolean(pendingDeleteMatch)}
-          title="매치 삭제"
-          description={
-            pendingDeleteMatch
-              ? `Match #${pendingDeleteMatch.matchNo}를 삭제하시겠습니까?`
-              : ""
-          }
-          confirmText="삭제"
-          loading={deleteMatchState.loading}
-          onConfirm={onConfirmDeleteMatch}
-          onCancel={() => setPendingDeleteMatch(null)}
-        />
       </div>
-    </PhoneFrame>
+      <ConfirmDialog
+        open={Boolean(pendingDeleteMatch)}
+        title="매치 삭제"
+        description={
+          pendingDeleteMatch
+            ? `Match #${pendingDeleteMatch.matchNo}를 삭제하시겠습니까?`
+            : ""
+        }
+        confirmText="삭제"
+        loading={deleteMatchState.loading}
+        onConfirm={onConfirmDeleteMatch}
+        onCancel={() => setPendingDeleteMatch(null)}
+      />
+    </DetailPageShell>
   );
 }

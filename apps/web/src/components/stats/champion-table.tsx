@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 export function ChampionTable({
   rows,
@@ -11,7 +12,7 @@ export function ChampionTable({
   }>;
 }) {
   return (
-    <div className="rounded-[16px] bg-white px-[14px] py-[12px] shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
+    <Card className="px-[14px] py-[12px]">
       <div className="grid grid-cols-[1fr_44px_44px_44px] gap-[8px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
         <div>Champion</div>
         <div className="text-right">Wins</div>
@@ -40,6 +41,6 @@ export function ChampionTable({
           </div>
         </div>
       ))}
-    </div>
+    </Card>
   );
 }

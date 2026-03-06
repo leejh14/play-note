@@ -3,11 +3,14 @@
 import { useMemo } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 import { useParams, useRouter } from "next/navigation";
+import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { PhoneFrame } from "@/components/layout/phone-frame";
-import { StatusBar } from "@/components/layout/status-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useToast } from "@/components/ui/toast";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
 import { ShareButtons } from "@/components/share/share-buttons";
@@ -60,22 +63,14 @@ function SectionHeader({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-[10px]">
-        <div className="flex h-[18px] w-[18px] items-center justify-center rounded-[999px] bg-[var(--pn-primary)] text-[11px] font-[800] text-[var(--pn-text-on-primary)]">
+        <div className="flex h-[24px] w-[24px] items-center justify-center rounded-[999px] bg-[var(--pn-primary)] text-[11px] font-[800] text-[var(--pn-text-on-primary)]">
           {number}
         </div>
-        <div className="text-[13px] font-[800] text-[var(--pn-text-primary)]">{title}</div>
+        <div className="text-[14px] font-[800] text-[var(--pn-text-primary)]">{title}</div>
       </div>
       {right ? (
         <div className="text-[11px] font-[700] text-[var(--pn-text-muted)]">{right}</div>
       ) : null}
-    </div>
-  );
-}
-
-function Card({ children }: { readonly children: ReactNode }) {
-  return (
-    <div className="rounded-[16px] bg-white px-[14px] py-[12px] shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
-      {children}
     </div>
   );
 }
@@ -86,7 +81,41 @@ function attendanceLabel(status: "ATTENDING" | "UNDECIDED" | "NOT_ATTENDING"): "
   return "?";
 }
 
+function attendanceStatusFromLabel(
+  label: string,
+): "ATTENDING" | "UNDECIDED" | "NOT_ATTENDING" | null {
+  if (label === "Y") return "ATTENDING";
+  if (label === "N") return "NOT_ATTENDING";
+  if (label === "?") return "UNDECIDED";
+  return null;
+}
+
 const LOL_LANE_ORDER = ["TOP", "JG", "MID", "ADC", "SUP"] as const;
+
+function SetupPageShell({
+  children,
+  backHref,
+  right,
+}: {
+  readonly children: ReactNode;
+  readonly backHref: string;
+  readonly right?: ReactNode;
+}) {
+  return (
+    <PhoneFrame>
+      <div className="flex min-h-screen w-full">
+        <BottomTabBar mode="side" />
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <div className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col">
+            <PageHeader title="Session Setup" backHref={backHref} right={right} />
+            {children}
+          </div>
+          <BottomTabBar mode="bottom" />
+        </div>
+      </div>
+    </PhoneFrame>
+  );
+}
 
 export default function SessionSetupPage() {
   const router = useRouter();
@@ -228,47 +257,35 @@ export default function SessionSetupPage() {
 
   if (!hasToken) {
     return (
-      <PhoneFrame>
-        <div className="flex min-h-screen flex-col">
-          <StatusBar />
-          <PageHeader title="Session Setup" backHref="/sessions" />
-          <div className="flex flex-1 items-center px-[16px]">
-            <TokenRequiredState />
-          </div>
+      <SetupPageShell backHref="/sessions">
+        <div className="flex flex-1 items-center px-[16px] sm:px-[20px] lg:px-[28px]">
+          <TokenRequiredState />
         </div>
-      </PhoneFrame>
+      </SetupPageShell>
     );
   }
 
   if (sessionQuery.error) {
     return (
-      <PhoneFrame>
-        <div className="flex min-h-screen flex-col">
-          <StatusBar />
-          <PageHeader title="Session Setup" backHref="/sessions" />
-          <div className="flex-1 px-[16px] pt-[16px]">
-            <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
-              {getGraphqlErrorMessage(
-                sessionQuery.error.graphQLErrors[0]?.extensions?.code as string | undefined,
-              )}
-            </div>
+      <SetupPageShell backHref="/sessions">
+        <div className="flex-1 px-[16px] pt-[16px] sm:px-[20px] lg:px-[28px]">
+          <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
+            {getGraphqlErrorMessage(
+              sessionQuery.error.graphQLErrors[0]?.extensions?.code as string | undefined,
+            )}
           </div>
         </div>
-      </PhoneFrame>
+      </SetupPageShell>
     );
   }
 
   if (sessionQuery.loading || !session) {
     return (
-      <PhoneFrame>
-        <div className="flex min-h-screen flex-col">
-          <StatusBar />
-          <PageHeader title="Session Setup" backHref="/sessions" />
-          <div className="flex flex-1 items-center justify-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
-            불러오는 중...
-          </div>
+      <SetupPageShell backHref="/sessions">
+        <div className="flex flex-1 items-center justify-center px-[16px] text-[12px] font-[600] text-[var(--pn-text-muted)] sm:px-[20px] lg:px-[28px]">
+          불러오는 중...
         </div>
-      </PhoneFrame>
+      </SetupPageShell>
     );
   }
 
@@ -283,29 +300,24 @@ export default function SessionSetupPage() {
     sessionQuery.loading;
 
   return (
-    <PhoneFrame>
-      <div className="flex min-h-screen flex-col">
-        <StatusBar />
-        <PageHeader
-          title="Session Setup"
-          backHref={`/s/${encodeURIComponent(session.id)}/detail`}
-          right={
-            shareToken ? (
-              <ShareButtons
-                sessionId={session.id}
-                token={shareToken}
-                contentType={session.contentType}
-                startsAt={session.startsAt}
-                attendingCount={session.attendances.filter((item) => item.status === "ATTENDING").length}
-                totalCount={session.attendances.length}
-                title={session.title}
-              />
-            ) : undefined
-          }
-        />
-
-        <div className="px-[16px]">
-          <div className="flex items-center gap-[8px] rounded-[12px] bg-[var(--pn-primary-light)] px-[12px] py-[10px]">
+    <SetupPageShell
+      backHref={`/s/${encodeURIComponent(session.id)}/detail`}
+      right={
+        shareToken ? (
+          <ShareButtons
+            sessionId={session.id}
+            token={shareToken}
+            contentType={session.contentType}
+            startsAt={session.startsAt}
+            attendingCount={session.attendances.filter((item) => item.status === "ATTENDING").length}
+            totalCount={session.attendances.length}
+            title={session.title}
+          />
+        ) : undefined
+      }
+    >
+      <div className="px-[16px] pt-[10px] sm:px-[20px] lg:px-[28px]">
+          <div className="flex items-center gap-[8px] rounded-[12px] border border-[rgba(33,150,243,0.18)] bg-[var(--pn-primary-light)] px-[12px] py-[10px]">
             <Badge tone="primary">{session.contentType === "LOL" ? "LoL" : "Futsal"}</Badge>
             <div className="text-[12px] font-[800] text-[var(--pn-primary)]">
               {session.title || "Untitled Session"}
@@ -321,45 +333,53 @@ export default function SessionSetupPage() {
           ) : null}
         </div>
 
-        <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px]">
+      <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px] sm:px-[20px] lg:px-[28px]">
           <div className="flex flex-col gap-[12px]">
             <div className="flex flex-col gap-[10px]">
               <SectionHeader number={1} title="Attendance" right={`${attendingMembers.length} / ${session.attendances.length}`} />
-              <Card>
+              <Card className="rounded-[16px] border-[rgba(15,23,42,0.06)] bg-white px-[14px] py-[12px] shadow-[var(--pn-shadow-card)]">
                 <div className="flex flex-col">
                   {session.attendances.map((row) => (
-                    <div key={row.friend.id} className="flex items-center justify-between py-[10px]">
-                      <div className="text-[13px] font-[700] text-[var(--pn-text-primary)]">
-                        {row.friend.displayName}
+                    <div key={row.friend.id} className="flex items-center justify-between border-b border-[rgba(15,23,42,0.06)] py-[10px] last:border-b-0">
+                      <div className="flex items-center gap-[8px]">
+                        <div className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-[var(--pn-primary-light)] text-[11px] font-[800] text-[var(--pn-primary)]">
+                          {row.friend.displayName.slice(0, 1).toUpperCase()}
+                        </div>
+                        <div className="text-[13px] font-[700] text-[var(--pn-text-primary)]">
+                          {row.friend.displayName}
+                        </div>
                       </div>
-                      <div className="flex gap-[6px]">
-                        {([
-                          ["Y", "ATTENDING"],
-                          ["?", "UNDECIDED"],
-                          ["N", "NOT_ATTENDING"],
-                        ] as const).map(([label, status]) => {
-                          const selected = attendanceLabel(row.status) === label;
-                          return (
-                            <button
-                              key={`${row.friend.id}-${label}`}
-                              disabled={disabledByLock || busy}
-                              onClick={() =>
-                                onSetAttendance(
-                                  row.friend.id,
-                                  status as "ATTENDING" | "UNDECIDED" | "NOT_ATTENDING",
-                                )
-                              }
-                              className={`flex h-[22px] w-[22px] items-center justify-center rounded-[6px] text-[10px] font-[800] ${
-                                selected
-                                  ? "bg-[var(--pn-primary)] text-[var(--pn-text-on-primary)]"
-                                  : "bg-[var(--pn-bg-card)] text-[var(--pn-text-secondary)]"
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <ToggleGroup
+                        type="single"
+                        value={attendanceLabel(row.status)}
+                        uiSize="sm"
+                        className="gap-[6px]"
+                        onValueChange={(nextValue) => {
+                          const status = attendanceStatusFromLabel(nextValue);
+                          if (!status) return;
+                          void onSetAttendance(row.friend.id, status);
+                        }}
+                        disabled={disabledByLock || busy}
+                      >
+                        <ToggleGroupItem
+                          value="Y"
+                          className="h-[28px] w-[28px] rounded-[8px] p-0"
+                        >
+                          Y
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="?"
+                          className="h-[28px] w-[28px] rounded-[8px] p-0"
+                        >
+                          ?
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="N"
+                          className="h-[28px] w-[28px] rounded-[8px] p-0"
+                        >
+                          N
+                        </ToggleGroupItem>
+                      </ToggleGroup>
                     </div>
                   ))}
                 </div>
@@ -372,18 +392,18 @@ export default function SessionSetupPage() {
                 title="Team Assignment"
                 right={
                   <div className="flex items-center gap-[6px]">
-                    <Button
-                      variant="secondary"
-                      className="h-[24px] rounded-[8px] px-[8px] text-[10px]"
-                      disabled={disabledByLock || busy || attendingMembers.length === 0}
-                      onClick={onQuickAssignBalancedTeams}
-                    >
+                      <Button
+                        variant="secondary"
+                        className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
+                        disabled={disabledByLock || busy || attendingMembers.length === 0}
+                        onClick={onQuickAssignBalancedTeams}
+                      >
                       균등 팀
                     </Button>
                     {session.contentType === "LOL" ? (
                       <Button
                         variant="secondary"
-                        className="h-[24px] rounded-[8px] px-[8px] text-[10px]"
+                        className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
                         disabled={disabledByLock || busy || attendingMembers.length === 0}
                         onClick={onQuickFillLanes}
                       >
@@ -393,48 +413,62 @@ export default function SessionSetupPage() {
                   </div>
                 }
               />
-              <Card>
+              <Card className="rounded-[16px] border-[rgba(15,23,42,0.06)] bg-white px-[14px] py-[12px] shadow-[var(--pn-shadow-card)]">
                 <div className="flex flex-col gap-[8px]">
                   {attendingMembers.map((member) => {
                     const assigned = teamMap.get(member.friend.id);
                     return (
-                      <div key={member.friend.id} className="flex items-center gap-[8px]">
-                        <div className="w-[92px] text-[12px] font-[700] text-[var(--pn-text-primary)]">
-                          {member.friend.displayName}
+                      <div key={member.friend.id} className="flex items-center gap-[8px] border-b border-[rgba(15,23,42,0.06)] pb-[8px] last:border-b-0 last:pb-0">
+                        <div className="flex w-[108px] items-center gap-[8px]">
+                          <div className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--pn-primary-light)] text-[10px] font-[800] text-[var(--pn-primary)]">
+                            {member.friend.displayName.slice(0, 1).toUpperCase()}
+                          </div>
+                          <div className="truncate text-[12px] font-[700] text-[var(--pn-text-primary)]">
+                            {member.friend.displayName}
+                          </div>
                         </div>
-                        <div className="flex gap-[6px]">
-                          {(["A", "B"] as const).map((team) => (
-                            <button
-                              key={`${member.friend.id}-${team}`}
-                              disabled={disabledByLock || busy}
-                              className={`h-[28px] rounded-[8px] px-[10px] text-[11px] font-[700] ${
-                                assigned?.team === team
-                                  ? "bg-[var(--pn-primary)] text-[var(--pn-text-on-primary)]"
-                                  : "bg-[var(--pn-bg-card)] text-[var(--pn-text-secondary)]"
-                              }`}
-                              onClick={() =>
-                                onSetTeamMember(member.friend.id, team, assigned?.lane ?? "UNKNOWN")
-                              }
-                            >
-                              Team {team}
-                            </button>
-                          ))}
-                        </div>
+                        <ToggleGroup
+                          type="single"
+                          value={assigned?.team ?? ""}
+                          className="gap-[6px]"
+                          onValueChange={(nextTeam) => {
+                            if (nextTeam !== "A" && nextTeam !== "B") return;
+                            void onSetTeamMember(
+                              member.friend.id,
+                              nextTeam,
+                              assigned?.lane ?? "UNKNOWN",
+                            );
+                          }}
+                          disabled={disabledByLock || busy}
+                        >
+                          <ToggleGroupItem
+                            value="A"
+                            className="h-[30px] rounded-[8px] px-[10px]"
+                          >
+                            Team A
+                          </ToggleGroupItem>
+                          <ToggleGroupItem
+                            value="B"
+                            className="h-[30px] rounded-[8px] px-[10px]"
+                          >
+                            Team B
+                          </ToggleGroupItem>
+                        </ToggleGroup>
                         {session.contentType === "LOL" ? (
-                          <select
+                          <Select
                             disabled={disabledByLock || busy}
                             value={assigned?.lane ?? "UNKNOWN"}
                             onChange={(event) =>
                               onSetTeamMember(member.friend.id, assigned?.team ?? "A", event.target.value)
                             }
-                            className="ml-auto h-[28px] rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[11px] font-[700] text-[var(--pn-text-secondary)] outline-none"
+                            className="ml-auto h-[30px] rounded-[8px] px-[8px] text-[11px]"
                           >
                             {laneOptions.map((lane) => (
                               <option key={lane} value={lane}>
                                 {lane}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         ) : null}
                       </div>
                     );
@@ -443,18 +477,17 @@ export default function SessionSetupPage() {
               </Card>
             </div>
           </div>
-        </div>
-
-        <div className="px-[16px] pb-[16px]">
-          <Button
-            className="h-[48px] w-full rounded-[12px]"
-            onClick={onConfirmSession}
-            disabled={busy || disabledByLock}
-          >
-            {confirmSessionState.loading ? "Confirming..." : "✓ Confirm Setup"}
-          </Button>
-        </div>
       </div>
-    </PhoneFrame>
+
+      <div className="px-[16px] pb-[16px] sm:px-[20px] lg:px-[28px]">
+        <Button
+          className="h-[52px] w-full rounded-[12px]"
+          onClick={onConfirmSession}
+          disabled={busy || disabledByLock}
+        >
+          {confirmSessionState.loading ? "Confirming..." : "✓ Confirm Setup"}
+        </Button>
+      </div>
+    </SetupPageShell>
   );
 }

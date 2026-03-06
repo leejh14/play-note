@@ -1,8 +1,7 @@
-import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
+import { Field, GraphQLISODateTime, ID, Int, ObjectType } from '@nestjs/graphql';
 import { Node } from '@shared/presentation/graphql/relay/node.resolver';
 import { MatchStatus } from '@domains/match/domain/enums/match-status.enum';
 import { Side } from '@domains/match/domain/enums/side.enum';
-import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
 import { Session } from '@domains/session/presentation/graphql/types/session.gql';
 import { MatchTeamMember } from './match-team-member.gql';
 import { Attachment } from '@domains/attachment/presentation/graphql/types/attachment.gql';
@@ -45,6 +44,6 @@ export class Match implements Node {
   @Field(() => [ExtractionResult], { nullable: false })
   extractionResults!: ExtractionResult[];
 
-  @Field(() => DateTimeScalar, { nullable: false })
+  @Field(() => GraphQLISODateTime, { nullable: false })
   createdAt!: Date;
 }

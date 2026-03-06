@@ -21,6 +21,7 @@ import { UnauthorizedException } from '@shared/exceptions/unauthorized.exception
 import { ValidationException } from '@shared/exceptions/validation.exception';
 import { GraphQLExceptionFilter } from '@shared/presentation/filters/graphql-exception.filter';
 import { NodeResolver } from '@shared/presentation/graphql/relay/node.resolver';
+import { JSONScalar } from '@shared/presentation/graphql/scalars/json.scalar';
 import { FriendQueryResolver } from '@domains/friend/presentation/resolvers/queries/friend.query.resolver';
 import { FriendMutationResolver } from '@domains/friend/presentation/resolvers/mutations/friend.mutation.resolver';
 import { SessionQueryResolver } from '@domains/session/presentation/resolvers/queries/session.query.resolver';
@@ -115,6 +116,7 @@ describe('Presentation GraphQL (e2e)', () => {
         }),
       ],
       providers: [
+        JSONScalar,
         NodeResolver,
         FriendQueryResolver,
         FriendMutationResolver,

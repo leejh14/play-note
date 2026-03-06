@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { PhoneFrame } from "@/components/layout/phone-frame";
-import { StatusBar } from "@/components/layout/status-bar";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { IconSearch } from "@/components/icons";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
@@ -135,189 +137,188 @@ export default function FriendsPage() {
 
   return (
     <PhoneFrame>
-      <div className="flex min-h-screen flex-col">
-        <StatusBar />
-
-        <div className="flex h-[44px] items-center justify-between px-[16px]">
-          <div className="text-[18px] font-[900] text-[var(--pn-text-primary)]">Friends</div>
-          {isAdmin ? (
-            <Button className="h-[30px] rounded-[12px] px-[10px] text-[11px]" onClick={onCreateFriend}>
-              Add
-            </Button>
-          ) : null}
-        </div>
-
-        <div className="px-[16px]">
-          {!hasAuth ? (
-            <TokenRequiredState />
-          ) : (
-            <>
-              <SessionContextSwitcher
-                activeSessionId={activeSessionId}
-                sessions={storedSessions}
-                onSelect={selectSession}
-                onRemove={removeSession}
-              />
-              <div className="flex h-[40px] items-center gap-[10px] rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] text-[12px] font-[600] text-[var(--pn-text-muted)]">
-                <IconSearch className="h-[16px] w-[16px]" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search by name"
-                  className="w-full bg-transparent text-[12px] text-[var(--pn-text-primary)] outline-none"
-                />
+      <div className="flex min-h-screen w-full">
+        <BottomTabBar mode="side" />
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <div className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col">
+            <div className="flex items-center justify-between border-b border-[rgba(15,23,42,0.08)] px-[16px] py-[14px] sm:px-[20px] lg:px-[28px]">
+              <div>
+                <div className="text-[18px] font-[900] tracking-[-0.2px] text-[var(--pn-text-primary)]">
+                  Friends
+                </div>
+                <div className="mt-[2px] text-[11px] font-[600] text-[var(--pn-text-muted)]">
+                  친구 관리
+                </div>
               </div>
-
               {isAdmin ? (
-                <div className="mt-[8px] flex gap-[8px]">
-                  <input
-                    value={newDisplayName}
-                    onChange={(event) => setNewDisplayName(event.target.value)}
-                    placeholder="새 친구 이름"
-                    className="h-[34px] flex-1 rounded-[10px] border border-[var(--pn-border)] bg-white px-[10px] text-[12px] outline-none"
-                  />
-                  <Button
-                    className="h-[34px] rounded-[10px] px-[10px] text-[11px]"
-                    onClick={onCreateFriend}
-                    disabled={createState.loading || !newDisplayName.trim()}
-                  >
-                    생성
-                  </Button>
-                </div>
-              ) : (
-                <div className="mt-[8px] rounded-[10px] bg-[var(--pn-bg-card)] px-[10px] py-[8px] text-[11px] font-[600] text-[var(--pn-text-secondary)]">
-                  친구 수정은 관리자 토큰에서만 가능합니다.
-                </div>
-              )}
+                <Button className="h-[34px] rounded-[10px] px-[12px] text-[12px]" onClick={onCreateFriend}>
+                  Add
+                </Button>
+              ) : null}
+            </div>
 
-              <div className="mt-[10px] flex items-center justify-between text-[11px] font-[600] text-[var(--pn-text-muted)]">
-                <div>{visibleFriends.length} friends</div>
-                <button
-                  className="flex items-center gap-[8px]"
-                  onClick={() => setIncludeArchived((prev) => !prev)}
-                >
-                  <span>Show archived</span>
-                  <div
-                    className={`h-[18px] w-[34px] rounded-[999px] p-[2px] ${
-                      includeArchived ? "bg-[var(--pn-primary)]" : "bg-[var(--pn-border)]"
-                    }`}
-                  >
-                    <div
-                      className={`h-[14px] w-[14px] rounded-[999px] bg-white transition-transform ${
-                        includeArchived ? "translate-x-[16px]" : ""
-                      }`}
+            <div className="border-b border-[rgba(15,23,42,0.08)] px-[16px] pb-[10px] pt-[12px] sm:px-[20px] lg:px-[28px]">
+              {!hasAuth ? (
+                <TokenRequiredState />
+              ) : (
+                <>
+                  <SessionContextSwitcher
+                    activeSessionId={activeSessionId}
+                    sessions={storedSessions}
+                    onSelect={selectSession}
+                    onRemove={removeSession}
+                  />
+                  <div className="flex h-[42px] items-center gap-[10px] rounded-[12px] border border-[rgba(15,23,42,0.06)] bg-[rgba(15,23,42,0.03)] px-[12px] text-[12px] font-[600] text-[var(--pn-text-muted)]">
+                    <IconSearch className="h-[16px] w-[16px]" />
+                    <Input
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Search by name"
+                      className="h-auto border-0 bg-transparent px-0 text-[12px] shadow-none focus-visible:border-0"
                     />
                   </div>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
 
-        <div className="flex-1 overflow-auto px-[16px] pb-[10px] pt-[10px]">
-          {!hasAuth ? null : friendsQuery.error ? (
-            <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
-              {getGraphqlErrorMessage(
-                friendsQuery.error.graphQLErrors[0]?.extensions?.code as string | undefined,
+                  {isAdmin ? (
+                    <div className="mt-[8px] flex gap-[8px]">
+                      <Input
+                        value={newDisplayName}
+                        onChange={(event) => setNewDisplayName(event.target.value)}
+                        placeholder="새 친구 이름"
+                        className="h-[34px] flex-1 rounded-[10px] text-[12px]"
+                      />
+                      <Button
+                        className="h-[34px] rounded-[10px] px-[10px] text-[11px]"
+                        onClick={onCreateFriend}
+                        disabled={createState.loading || !newDisplayName.trim()}
+                      >
+                        생성
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-[8px] rounded-[10px] border border-[rgba(15,23,42,0.06)] bg-[rgba(15,23,42,0.03)] px-[10px] py-[8px] text-[11px] font-[600] text-[var(--pn-text-secondary)]">
+                      친구 수정은 관리자 토큰에서만 가능합니다.
+                    </div>
+                  )}
+
+                  <div className="mt-[10px] flex items-center justify-between text-[11px] font-[600] text-[var(--pn-text-muted)]">
+                    <div>{visibleFriends.length} friends</div>
+                    <label className="flex cursor-pointer items-center gap-[8px]">
+                      <span>Show archived</span>
+                      <Switch
+                        checked={includeArchived}
+                        onCheckedChange={setIncludeArchived}
+                      />
+                    </label>
+                  </div>
+                </>
               )}
             </div>
-          ) : friendsQuery.loading ? (
-            <div className="py-[20px] text-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
-              불러오는 중...
-            </div>
-          ) : (
-            <div className="border-t border-[var(--pn-border)]">
-              {visibleFriends.map((friend) => {
-                const riotId =
-                  friend.riotGameName && friend.riotTagLine
-                    ? `${friend.riotGameName}#${friend.riotTagLine}`
-                    : "Riot ID 미연결";
-                const isEditing = editingId === friend.id;
-                return (
-                  <div
-                    key={friend.id}
-                    className={`flex items-center justify-between border-b border-[var(--pn-border)] py-[12px] ${
-                      friend.isArchived ? "opacity-40" : ""
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      {isEditing ? (
-                        <input
-                          value={editingDisplayName}
-                          onChange={(event) => setEditingDisplayName(event.target.value)}
-                          className="h-[30px] w-full rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[12px] font-[700] outline-none"
-                        />
-                      ) : (
-                        <div className="truncate text-[13px] font-[800] text-[var(--pn-text-primary)]">
-                          {friend.displayName}
+
+            <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px] sm:px-[20px] lg:px-[28px]">
+              {!hasAuth ? null : friendsQuery.error ? (
+                <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
+                  {getGraphqlErrorMessage(
+                    friendsQuery.error.graphQLErrors[0]?.extensions?.code as string | undefined,
+                  )}
+                </div>
+              ) : friendsQuery.loading ? (
+                <div className="py-[20px] text-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
+                  불러오는 중...
+                </div>
+              ) : (
+                <Card className="px-[12px] shadow-[var(--pn-shadow-soft)]">
+                  {visibleFriends.map((friend) => {
+                    const riotId =
+                      friend.riotGameName && friend.riotTagLine
+                        ? `${friend.riotGameName}#${friend.riotTagLine}`
+                        : "Riot ID 미연결";
+                    const isEditing = editingId === friend.id;
+                    return (
+                      <div
+                        key={friend.id}
+                        className={`flex items-center justify-between border-b border-[rgba(15,23,42,0.06)] py-[12px] last:border-b-0 ${
+                          friend.isArchived ? "opacity-40" : ""
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          {isEditing ? (
+                            <Input
+                              value={editingDisplayName}
+                              onChange={(event) => setEditingDisplayName(event.target.value)}
+                              className="h-[30px] w-full rounded-[8px] px-[8px] text-[12px] font-[700]"
+                            />
+                          ) : (
+                            <div className="truncate text-[13px] font-[800] text-[var(--pn-text-primary)]">
+                              {friend.displayName}
+                            </div>
+                          )}
+                          <div className="truncate text-[10px] font-[600] text-[var(--pn-text-muted)]">
+                            {riotId}
+                          </div>
                         </div>
-                      )}
-                      <div className="truncate text-[10px] font-[600] text-[var(--pn-text-muted)]">
-                        {riotId}
-                      </div>
-                    </div>
 
-                    {isAdmin ? (
-                      <div className="ml-[10px] flex items-center gap-[6px]">
-                        {isEditing ? (
-                          <Button
-                            variant="secondary"
-                            className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
-                            onClick={() => onUpdateFriend(friend.id)}
-                          >
-                            Save
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="secondary"
-                            className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
-                            onClick={() => {
-                              setEditingId(friend.id);
-                              setEditingDisplayName(friend.displayName);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
-                          onClick={() =>
-                            setPendingArchive({
-                              friendId: friend.id,
-                              archived: friend.isArchived,
-                              displayName: friend.displayName,
-                            })
-                          }
-                        >
-                          {friend.isArchived ? "Restore" : "Archive"}
-                        </Button>
+                        {isAdmin ? (
+                          <div className="ml-[10px] flex items-center gap-[6px]">
+                            {isEditing ? (
+                              <Button
+                                variant="secondary"
+                                className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
+                                onClick={() => onUpdateFriend(friend.id)}
+                              >
+                                Save
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="secondary"
+                                className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
+                                onClick={() => {
+                                  setEditingId(friend.id);
+                                  setEditingDisplayName(friend.displayName);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              className="h-[28px] rounded-[8px] px-[9px] text-[10px]"
+                              onClick={() =>
+                                setPendingArchive({
+                                  friendId: friend.id,
+                                  archived: friend.isArchived,
+                                  displayName: friend.displayName,
+                                })
+                              }
+                            >
+                              {friend.isArchived ? "Restore" : "Archive"}
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </Card>
+              )}
             </div>
-          )}
+          </div>
+          <BottomTabBar mode="bottom" />
         </div>
-
-        <BottomTabBar />
-        <ConfirmDialog
-          open={Boolean(pendingArchive)}
-          title={pendingArchive?.archived ? "친구 복원" : "친구 보관"}
-          description={
-            pendingArchive
-              ? pendingArchive.archived
-                ? `${pendingArchive.displayName} 친구를 복원하시겠습니까?`
-                : `${pendingArchive.displayName} 친구를 보관 처리하시겠습니까?`
-              : ""
-          }
-          confirmText={pendingArchive?.archived ? "복원" : "보관"}
-          loading={archiveState.loading || restoreState.loading}
-          onConfirm={onConfirmArchiveToggle}
-          onCancel={() => setPendingArchive(null)}
-        />
       </div>
+      <ConfirmDialog
+        open={Boolean(pendingArchive)}
+        title={pendingArchive?.archived ? "친구 복원" : "친구 보관"}
+        description={
+          pendingArchive
+            ? pendingArchive.archived
+              ? `${pendingArchive.displayName} 친구를 복원하시겠습니까?`
+              : `${pendingArchive.displayName} 친구를 보관 처리하시겠습니까?`
+            : ""
+        }
+        confirmText={pendingArchive?.archived ? "복원" : "보관"}
+        loading={archiveState.loading || restoreState.loading}
+        onConfirm={onConfirmArchiveToggle}
+        onCancel={() => setPendingArchive(null)}
+      />
     </PhoneFrame>
   );
 }

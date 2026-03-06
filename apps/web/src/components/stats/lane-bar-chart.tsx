@@ -1,3 +1,5 @@
+import { Card } from "@/components/ui/card";
+
 export function LaneBarChart({
   data,
 }: {
@@ -7,13 +9,13 @@ export function LaneBarChart({
   }>;
 }) {
   return (
-    <div className="space-y-[10px] rounded-[16px] bg-white px-[14px] py-[12px] shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
+    <Card className="space-y-[10px] px-[14px] py-[12px]">
       {data.map((row) => (
         <div key={row.label} className="flex items-center gap-[10px]">
-          <div className="w-[40px] text-[10px] font-[800] text-[var(--pn-text-secondary)]">
+          <div className="w-[40px] text-[11px] font-[800] text-[var(--pn-text-secondary)]">
             {row.label}
           </div>
-          <div className="h-[10px] flex-1 overflow-hidden rounded-[999px] bg-[var(--pn-bg-card)]">
+          <div className="h-[12px] flex-1 overflow-hidden rounded-[999px] bg-[var(--pn-bg-card)]">
             <div
               className="h-full rounded-[999px] bg-[var(--pn-primary)]"
               style={{ width: `${Math.max(row.pct, 3)}%` }}
@@ -24,6 +26,6 @@ export function LaneBarChart({
           </div>
         </div>
       ))}
-    </div>
+    </Card>
   );
 }

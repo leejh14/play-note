@@ -1,5 +1,4 @@
-import { ObjectType, Field, ID } from '@nestjs/graphql';
-import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
+import { ObjectType, Field, GraphQLISODateTime, ID } from '@nestjs/graphql';
 import { Node } from '@shared/presentation/graphql/relay/node.resolver';
 
 @ObjectType('Friend', {
@@ -21,9 +20,9 @@ export class Friend implements Node {
   @Field(() => Boolean, { nullable: false })
   isArchived!: boolean;
 
-  @Field(() => DateTimeScalar, { nullable: false })
+  @Field(() => GraphQLISODateTime, { nullable: false })
   createdAt!: Date;
 
-  @Field(() => DateTimeScalar, { nullable: false })
+  @Field(() => GraphQLISODateTime, { nullable: false })
   updatedAt!: Date;
 }

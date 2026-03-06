@@ -1,8 +1,16 @@
 {
   "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
+  "workspaces": {
+    "packages": [
+      "apps/*"
+    ],
+    "nohoist": [
+      "**/@nestjs/**",
+      "**/@nestjs/**/**",
+      "**/@mikro-orm/**",
+      "**/@mikro-orm/**/**"
+    ]
+  },
   "scripts": {
     "api": "yarn workspace @playnote/api",
     "web": "yarn workspace @playnote/web",

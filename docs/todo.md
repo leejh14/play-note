@@ -62,19 +62,20 @@
   - error code → 사용자 메시지 매핑
 - [x] API E2E 보강
   - `createSession` 무헤더 호출 허용 검증(`session-create-public.e2e-spec.ts`)
-- [~] Web E2E 테스트(Playwright 권장)
+- [x] Web E2E 테스트(Playwright 권장)
   - [x] `/s/{id}?t=` 진입/저장/리다이렉트
   - [x] setup → confirm → detail
-  - [~] admin/editor 분기(friend CRUD, match delete) — friend 분기 완료, match delete 대기
+  - [x] admin/editor 분기(friend CRUD, match delete)
   - [x] presigned upload 플로우
-- [ ] 모바일 수동 QA
-  - 카카오 공유, 링크 복사, OG 프리뷰, 토큰 오류 케이스
+- [~] 모바일 수동 QA
+  - [x] 토큰 오류/링크 복사/OG 프리뷰/카카오 fallback 자동 검증 (`docs/qa/p0-mobile-qa-2026-03-05.md`)
+  - [ ] 카카오톡 실메시지 렌더링 실기기 확인
 
 ---
 
 ## 5) 데이터/외부 연동 준비 (배포 제외)
 
-- [ ] `init.sql` 초기 Friend 데이터 구성
+- [x] `init.sql` 초기 Friend 데이터 구성
 - [ ] Kakao Developers 앱 실제 설정 검증
   - 도메인 등록
   - JavaScript 키 검증

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ShareButtons } from "@/components/share/share-buttons";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 function contentLabel(contentType: "LOL" | "FUTSAL"): string {
   return contentType === "LOL" ? "LoL" : "Futsal";
@@ -28,21 +29,21 @@ export function ShareComplete({
   readonly continueHref: string;
 }) {
   return (
-    <div className="flex flex-col gap-[12px] rounded-[16px] border border-[var(--pn-border)] bg-white px-[14px] py-[16px]">
+    <Card className="flex flex-col gap-[12px] border-[var(--pn-border)] px-[14px] py-[16px]">
       <div className="text-[17px] font-[900] text-[var(--pn-text-primary)]">
         세션이 생성되었습니다
       </div>
       <div className="text-[12px] font-[600] text-[var(--pn-text-secondary)]">
         아래 버튼으로 카카오 공유 또는 링크 복사를 진행하세요.
       </div>
-      <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[10px] py-[10px]">
+      <Card className="rounded-[12px] border-0 bg-[var(--pn-bg-card)] px-[10px] py-[10px] shadow-none">
         <div className="text-[12px] font-[800] text-[var(--pn-text-primary)]">
           {title || "Untitled Session"}
         </div>
         <div className="mt-[4px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
           {contentLabel(contentType)} · {new Date(startsAt).toLocaleString("ko-KR")}
         </div>
-      </div>
+      </Card>
       <div className="flex justify-center py-[4px]">
         <ShareButtons
           sessionId={sessionId}
@@ -64,6 +65,6 @@ export function ShareComplete({
           </Button>
         </Link>
       </div>
-    </div>
+    </Card>
   );
 }

@@ -2,12 +2,13 @@
 
 import { useQuery } from "@apollo/client";
 import { useParams } from "next/navigation";
+import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { PhoneFrame } from "@/components/layout/phone-frame";
-import { StatusBar } from "@/components/layout/status-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import { LaneBarChart } from "@/components/stats/lane-bar-chart";
 import { ChampionTable } from "@/components/stats/champion-table";
 import { TokenRequiredState } from "@/components/auth/token-required-state";
+import { Card } from "@/components/ui/card";
 import { STATS_DETAIL_QUERY } from "@/lib/graphql/operations";
 import { getGraphqlErrorMessage } from "@/lib/error-messages";
 import { getDefaultSessionId, getToken } from "@/lib/token";
@@ -46,11 +47,11 @@ function StatCard({
   readonly sub: string;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center rounded-[16px] bg-white px-[10px] py-[14px] shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
+    <Card className="flex flex-1 flex-col items-center justify-center px-[10px] py-[14px]">
       <div className="text-[10px] font-[700] text-[var(--pn-text-muted)]">{label}</div>
       <div className="mt-[6px] text-[18px] font-[900] text-[var(--pn-primary)]">{value}</div>
       <div className="mt-[4px] text-[10px] font-[700] text-[var(--pn-text-muted)]">{sub}</div>
-    </div>
+    </Card>
   );
 }
 
@@ -88,61 +89,68 @@ export default function StatsFriendDetailPage() {
 
   return (
     <PhoneFrame>
-      <div className="flex min-h-screen flex-col">
-        <StatusBar />
-        <PageHeader title="Statistics" backHref="/stats" />
+      <div className="flex min-h-screen w-full">
+        <BottomTabBar mode="side" />
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <div className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col">
+            <PageHeader title="Statistics" backHref="/stats" />
 
-        <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px]">
-          {!hasAuth ? (
-            <TokenRequiredState />
-          ) : error ? (
-            <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
-              {getGraphqlErrorMessage(error.graphQLErrors[0]?.extensions?.code as string | undefined)}
+            <div className="flex-1 overflow-auto px-[16px] pb-[16px] pt-[12px] sm:px-[20px] lg:px-[28px]">
+              {!hasAuth ? (
+                <TokenRequiredState />
+              ) : error ? (
+                <div className="rounded-[12px] bg-[var(--pn-bg-card)] px-[12px] py-[12px] text-[12px] font-[600] text-[var(--pn-text-secondary)]">
+                  {getGraphqlErrorMessage(error.graphQLErrors[0]?.extensions?.code as string | undefined)}
+                </div>
+              ) : loading || !detail ? (
+                <div className="py-[20px] text-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
+                  불러오는 중...
+                </div>
+              ) : (
+                <>
+                  <Card className="rounded-[14px] px-[12px] py-[10px] shadow-[var(--pn-shadow-soft)]">
+                    <div className="text-[14px] font-[900] text-[var(--pn-text-primary)]">
+                      {detail.friend.displayName}
+                    </div>
+                    <div className="mt-[6px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
+                      {detail.friend.riotGameName && detail.friend.riotTagLine
+                        ? `${detail.friend.riotGameName}#${detail.friend.riotTagLine}`
+                        : "Riot ID not linked"}{" "}
+                      · {detail.totalMatches} matches played
+                    </div>
+                  </Card>
+
+                  <div className="mt-[12px] flex gap-[12px]">
+                    <StatCard
+                      label="Win Rate"
+                      value={detail.winRate === null ? "–" : `${Math.round(detail.winRate * 100)}%`}
+                      sub={`${detail.totalMatches} matches`}
+                    />
+                    <StatCard
+                      label="Top Lane"
+                      value={detail.topLane ?? "–"}
+                      sub="most played"
+                    />
+                  </div>
+
+                  <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">
+                    Lane Distribution
+                  </div>
+                  <div className="mt-[10px]">
+                    <LaneBarChart data={laneRows} />
+                  </div>
+
+                  <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">
+                    Most Winning Champions
+                  </div>
+                  <div className="mt-[10px]">
+                    <ChampionTable rows={championRows} />
+                  </div>
+                </>
+              )}
             </div>
-          ) : loading || !detail ? (
-            <div className="py-[20px] text-center text-[12px] font-[600] text-[var(--pn-text-muted)]">
-              불러오는 중...
-            </div>
-          ) : (
-            <>
-              <div className="text-[14px] font-[900] text-[var(--pn-text-primary)]">
-                {detail.friend.displayName}
-              </div>
-              <div className="mt-[6px] text-[10px] font-[700] text-[var(--pn-text-muted)]">
-                {detail.friend.riotGameName && detail.friend.riotTagLine
-                  ? `${detail.friend.riotGameName}#${detail.friend.riotTagLine}`
-                  : "Riot ID not linked"}{" "}
-                · {detail.totalMatches} matches played
-              </div>
-
-              <div className="mt-[12px] flex gap-[12px]">
-                <StatCard
-                  label="Win Rate"
-                  value={detail.winRate === null ? "–" : `${Math.round(detail.winRate * 100)}%`}
-                  sub={`${detail.totalMatches} matches`}
-                />
-                <StatCard
-                  label="Top Lane"
-                  value={detail.topLane ?? "–"}
-                  sub="most played"
-                />
-              </div>
-
-              <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">
-                Lane Distribution
-              </div>
-              <div className="mt-[10px]">
-                <LaneBarChart data={laneRows} />
-              </div>
-
-              <div className="mt-[14px] text-[13px] font-[900] text-[var(--pn-text-primary)]">
-                Most Winning Champions
-              </div>
-              <div className="mt-[10px]">
-                <ChampionTable rows={championRows} />
-              </div>
-            </>
-          )}
+          </div>
+          <BottomTabBar mode="bottom" />
         </div>
       </div>
     </PhoneFrame>

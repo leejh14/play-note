@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import type { StoredSessionToken } from "@/lib/token";
 
 function formatSessionOptionLabel(session: StoredSessionToken): string {
@@ -44,22 +45,22 @@ export function SessionContextSwitcher({
   }
 
   return (
-    <div className="mt-[8px] flex items-center gap-[8px] rounded-[10px] bg-[var(--pn-bg-card)] px-[10px] py-[8px]">
-      <span className="text-[10px] font-[700] text-[var(--pn-text-muted)]">Session</span>
-      <select
+    <div className="mt-[10px] flex items-center gap-[8px] rounded-[12px] border border-[rgba(15,23,42,0.06)] bg-[rgba(15,23,42,0.03)] px-[10px] py-[8px]">
+      <span className="text-[11px] font-[700] text-[var(--pn-text-secondary)]">Session</span>
+      <Select
         value={selectedSessionId}
         onChange={(event) => onSelect(event.target.value)}
-        className="h-[28px] flex-1 rounded-[8px] border border-[var(--pn-border)] bg-white px-[8px] text-[10px] font-[700] text-[var(--pn-text-secondary)] outline-none"
+        className="flex-1"
       >
         {sessions.map((item) => (
           <option key={item.sessionId} value={item.sessionId} title={item.sessionId}>
             {formatSessionOptionLabel(item)}
           </option>
         ))}
-      </select>
+      </Select>
       <Button
         variant="ghost"
-        className="h-[28px] rounded-[8px] px-[8px] text-[10px]"
+        className="h-[32px] rounded-[10px] px-[10px] text-[11px]"
         onClick={() => {
           if (selectedSessionId) {
             onRemove(selectedSessionId);

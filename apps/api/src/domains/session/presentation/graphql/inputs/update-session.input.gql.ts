@@ -1,7 +1,6 @@
-import { Field, ID, InputType } from '@nestjs/graphql';
+import { Field, GraphQLISODateTime, ID, InputType } from '@nestjs/graphql';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { RelayMutationInput } from '@libs/relay';
-import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
 
 @InputType('UpdateSessionInput')
 export class UpdateSessionInput extends RelayMutationInput {
@@ -15,7 +14,7 @@ export class UpdateSessionInput extends RelayMutationInput {
   @MaxLength(255)
   title?: string;
 
-  @Field(() => DateTimeScalar, { nullable: true })
+  @Field(() => GraphQLISODateTime, { nullable: true })
   @IsOptional()
   startsAt?: Date;
 }

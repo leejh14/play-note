@@ -1,6 +1,5 @@
-import { Field, ObjectType } from '@nestjs/graphql';
+import { Field, GraphQLISODateTime, ObjectType } from '@nestjs/graphql';
 import { ContentType } from '@domains/session/domain/enums/content-type.enum';
-import { DateTimeScalar } from '@shared/presentation/graphql/scalars/date-time.scalar';
 
 @ObjectType('SessionPreview')
 export class SessionPreview {
@@ -10,6 +9,6 @@ export class SessionPreview {
   @Field(() => String, { nullable: true })
   title!: string | null;
 
-  @Field(() => DateTimeScalar, { nullable: false })
+  @Field(() => GraphQLISODateTime, { nullable: false })
   startsAt!: Date;
 }
