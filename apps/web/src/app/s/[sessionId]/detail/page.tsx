@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { Suspense, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
 import {
@@ -16,6 +16,20 @@ import {
 } from "@/lib/playnote";
 
 export default function MatchDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full items-center justify-center">
+          <p className="text-[var(--gray-500)]">Loading...</p>
+        </div>
+      }
+    >
+      <MatchDetailContent />
+    </Suspense>
+  );
+}
+
+function MatchDetailContent() {
   const router = useRouter();
   const params = useParams<{ sessionId: string }>();
   const searchParams = useSearchParams();

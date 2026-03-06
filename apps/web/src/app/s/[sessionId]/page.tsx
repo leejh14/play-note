@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import {
@@ -33,6 +33,20 @@ const statusLabel: Record<Session["status"], string> = {
 };
 
 export default function SessionDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full items-center justify-center bg-[var(--white)]">
+          <p className="text-[var(--gray-500)]">Loading...</p>
+        </div>
+      }
+    >
+      <SessionDetailContent />
+    </Suspense>
+  );
+}
+
+function SessionDetailContent() {
   const router = useRouter();
   const params = useParams<{ sessionId: string }>();
   const searchParams = useSearchParams();
