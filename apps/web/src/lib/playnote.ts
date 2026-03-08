@@ -277,6 +277,7 @@ const CREATE_SESSION_MUTATION = `
         id
       }
       editorToken
+      adminToken
     }
   }
 `;
@@ -789,10 +790,15 @@ function saveSessionEditorToken(sessionId: string, token: string): void {
     return;
   }
 
+  const normalizedToken = normalizeStoredToken(token);
+  if (!normalizedToken) {
+    return;
+  }
+
   const localSessionId = ensureLocalId("Session", sessionId);
   window.localStorage.setItem(
     createSessionStorageKey(localSessionId, EDITOR_TOKEN_KEY_SUFFIX),
-    token,
+    normalizedToken,
   );
 }
 
@@ -801,10 +807,15 @@ function saveSessionAdminToken(sessionId: string, token: string): void {
     return;
   }
 
+  const normalizedToken = normalizeStoredToken(token);
+  if (!normalizedToken) {
+    return;
+  }
+
   const localSessionId = ensureLocalId("Session", sessionId);
   window.localStorage.setItem(
     createSessionStorageKey(localSessionId, ADMIN_TOKEN_KEY_SUFFIX),
-    token,
+    normalizedToken,
   );
 }
 
@@ -1872,7 +1883,11 @@ function getStoredSessionToken(localSessionId: string, suffix: string): string |
     return null;
   }
 
-  return window.localStorage.getItem(createSessionStorageKey(localSessionId, suffix));
+  const token = window.localStorage.getItem(
+    createSessionStorageKey(localSessionId, suffix),
+  );
+
+  return normalizeStoredToken(token);
 }
 
 function getPreferredSessionToken(localSessionId: string): string | null {
@@ -1881,6 +1896,19 @@ function getPreferredSessionToken(localSessionId: string): string | null {
     getStoredSessionToken(localSessionId, TOKEN_KEY_SUFFIX) ??
     getStoredSessionToken(localSessionId, EDITOR_TOKEN_KEY_SUFFIX)
   );
+}
+
+function normalizeStoredToken(token: string | null | undefined): string | null {
+  if (!token) {
+    return null;
+  }
+
+  const trimmed = token.trim();
+  if (trimmed.length === 0 || trimmed === "undefined" || trimmed === "null") {
+    return null;
+  }
+
+  return trimmed;
 }
 
 function ensureGlobalId(expectedType: string, id: string): string {

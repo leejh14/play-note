@@ -208,13 +208,17 @@ function MatchDetailContent() {
   const winnerSideLabel =
     winnerSideSelection === "UNKNOWN" ? "Not set" : winnerSideSelection;
   const winnerTeam = resolveWinnerTeam(teamASideSelection, winnerSideSelection) ?? match.winnerTeam;
+  const teamATone = getSideTone(teamASideSelection, "blue");
+  const teamBTone = getOppositeSideTone(teamASideSelection);
+  const winnerTone = getSideTone(winnerSideSelection, "blue");
+  const matchupGradientClass = getMatchupGradientClass(teamATone, teamBTone);
   const teamAResult =
     winnerTeam === "A" ? "WIN" : winnerTeam === "B" ? "LOSE" : "-";
   const teamBResult =
     winnerTeam === "B" ? "WIN" : winnerTeam === "A" ? "LOSE" : "-";
-  const teamASideBadgeClass = getSideBadgeClass(teamASideLabel, "blue");
-  const teamBSideBadgeClass = getSideBadgeClass(teamBSideLabel, "red");
-  const winnerSideBadgeClass = getSideBadgeClass(winnerSideLabel, "blue");
+  const teamASideBadgeClass = getSideBadgeClass(teamASideLabel, teamATone);
+  const teamBSideBadgeClass = getSideBadgeClass(teamBSideLabel, teamBTone);
+  const winnerSideBadgeClass = getSideBadgeClass(winnerSideLabel, winnerTone);
   const ocrStatusLabel = getOcrStatusLabel(match);
   const ocrStatusClass = getOcrStatusClass(match.latestExtractionStatus);
   const confirmSourceLabel = getConfirmSourceLabel(match);
@@ -322,15 +326,17 @@ function MatchDetailContent() {
       </div>
 
       <div className="px-[24px]">
-        <div className="flex items-center justify-around rounded-[var(--radius-lg)] bg-gradient-to-r from-[var(--primary-light)] to-[var(--red-light)] py-[24px]">
+        <div
+          className={`flex items-center justify-around rounded-[var(--radius-lg)] ${matchupGradientClass} py-[24px]`}
+        >
           <div className="flex flex-col items-center gap-[4px]">
-            <span className="text-[12px] font-bold text-[var(--primary)]">
+            <span className={`text-[12px] font-bold ${getSideTextClass(teamATone)}`}>
               Team A
             </span>
-            <span className="rounded-[4px] bg-[var(--primary)] px-[8px] py-[2px] text-[10px] font-bold text-[var(--white)]">
+            <span className={teamASideBadgeClass}>
               {teamASideLabel}
             </span>
-            <span className="text-[28px] font-bold text-[var(--primary)]">
+            <span className={`text-[28px] font-bold ${getSideTextClass(teamATone)}`}>
               {teamAResult}
             </span>
           </div>
@@ -338,13 +344,13 @@ function MatchDetailContent() {
             vs
           </span>
           <div className="flex flex-col items-center gap-[4px]">
-            <span className="text-[12px] font-bold text-[var(--red)]">
+            <span className={`text-[12px] font-bold ${getSideTextClass(teamBTone)}`}>
               Team B
             </span>
-            <span className="rounded-[4px] bg-[var(--red)] px-[8px] py-[2px] text-[10px] font-bold text-[var(--white)]">
+            <span className={teamBSideBadgeClass}>
               {teamBSideLabel}
             </span>
-            <span className="text-[28px] font-bold text-[var(--red)]">
+            <span className={`text-[28px] font-bold ${getSideTextClass(teamBTone)}`}>
               {teamBResult}
             </span>
           </div>
@@ -355,16 +361,16 @@ function MatchDetailContent() {
         <h2 className="text-[20px] font-bold text-[var(--black)]">Lineup</h2>
 
         <div className="flex flex-col gap-[4px]">
-          <span className="text-[12px] font-bold text-[var(--primary)]">
+          <span className={`text-[12px] font-bold ${getSideTextClass(teamATone)}`}>
             Team A · {teamASideLabel}
           </span>
           {match.teamAPlayers.map((player) => (
             <div
               key={player.name}
-              className="flex items-center justify-between rounded-[var(--radius-sm)] bg-[var(--primary-light)] px-[12px] py-[8px]"
+              className={`flex items-center justify-between rounded-[var(--radius-sm)] ${getSideSurfaceClass(teamATone)} px-[12px] py-[8px]`}
             >
               <div className="flex items-center gap-[8px]">
-                <span className="rounded-[4px] bg-[var(--primary)] px-[6px] py-[2px] text-[9px] font-bold text-[var(--white)]">
+                <span className={getLaneBadgeClass(teamATone)}>
                   {player.lane}
                 </span>
                 <span className="text-[14px] font-medium text-[var(--black)]">
@@ -379,16 +385,16 @@ function MatchDetailContent() {
         </div>
 
         <div className="flex flex-col gap-[4px]">
-          <span className="text-[12px] font-bold text-[var(--red)]">
+          <span className={`text-[12px] font-bold ${getSideTextClass(teamBTone)}`}>
             Team B · {teamBSideLabel}
           </span>
           {match.teamBPlayers.map((player) => (
             <div
               key={player.name}
-              className="flex items-center justify-between rounded-[var(--radius-sm)] bg-[var(--red-light)] px-[12px] py-[8px]"
+              className={`flex items-center justify-between rounded-[var(--radius-sm)] ${getSideSurfaceClass(teamBTone)} px-[12px] py-[8px]`}
             >
               <div className="flex items-center gap-[8px]">
-                <span className="rounded-[4px] bg-[var(--red)] px-[6px] py-[2px] text-[9px] font-bold text-[var(--white)]">
+                <span className={getLaneBadgeClass(teamBTone)}>
                   {player.lane}
                 </span>
                 <span className="text-[14px] font-medium text-[var(--black)]">
@@ -497,9 +503,9 @@ function MatchDetailContent() {
             <span
               className={
                 winnerTeam === "A"
-                  ? "font-bold text-[var(--primary)]"
+                  ? `font-bold ${getSideTextClass(teamATone)}`
                   : winnerTeam === "B"
-                    ? "font-bold text-[var(--red)]"
+                    ? `font-bold ${getSideTextClass(teamBTone)}`
                     : "text-[var(--gray-500)]"
               }
             >
@@ -686,6 +692,68 @@ function getOcrStatusClass(status: MatchExtractionStatus): string {
   }
 
   return "text-[12px] font-semibold text-[var(--gray-500)]";
+}
+
+function getSideTone(
+  side: Side,
+  unknownTone: "blue" | "red",
+): "blue" | "red" {
+  if (side === "RED") {
+    return "red";
+  }
+
+  if (side === "BLUE") {
+    return "blue";
+  }
+
+  return unknownTone;
+}
+
+function getOppositeSideTone(side: Side): "blue" | "red" {
+  if (side === "BLUE") {
+    return "red";
+  }
+
+  if (side === "RED") {
+    return "blue";
+  }
+
+  return "red";
+}
+
+function getSideTextClass(tone: "blue" | "red"): string {
+  if (tone === "red") {
+    return "text-[var(--red)]";
+  }
+
+  return "text-[var(--primary)]";
+}
+
+function getSideSurfaceClass(tone: "blue" | "red"): string {
+  if (tone === "red") {
+    return "bg-[var(--red-light)]";
+  }
+
+  return "bg-[var(--primary-light)]";
+}
+
+function getLaneBadgeClass(tone: "blue" | "red"): string {
+  if (tone === "red") {
+    return "rounded-[4px] bg-[var(--red)] px-[6px] py-[2px] text-[9px] font-bold text-[var(--white)]";
+  }
+
+  return "rounded-[4px] bg-[var(--primary)] px-[6px] py-[2px] text-[9px] font-bold text-[var(--white)]";
+}
+
+function getMatchupGradientClass(
+  leftTone: "blue" | "red",
+  rightTone: "blue" | "red",
+): string {
+  if (leftTone === "red" && rightTone === "blue") {
+    return "bg-gradient-to-r from-[var(--red-light)] to-[var(--primary-light)]";
+  }
+
+  return "bg-gradient-to-r from-[var(--primary-light)] to-[var(--red-light)]";
 }
 
 function getSideBadgeClass(
