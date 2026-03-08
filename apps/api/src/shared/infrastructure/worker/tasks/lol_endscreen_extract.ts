@@ -1,7 +1,7 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { QueryResultRow } from 'pg';
 import type { JobHelpers, Task } from 'graphile-worker';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -12,6 +12,11 @@ import {
   IExtractionService,
 } from '@domains/attachment/domain/services/extraction.service.interface';
 import { PythonCliExtractionService } from '@domains/attachment/infrastructure/extraction/python-cli-extraction.service';
+import {
+  isLocalStorageKey,
+  resolveLocalStoragePath,
+  resolveLocalStorageRoot,
+} from '@shared/infrastructure/storage/storage.utils';
 
 const ROI_PROFILE = 'LOL_ENDSCREEN_V1';
 
@@ -67,35 +72,37 @@ export const buildLolEndscreenExtractTask = (
       `lol_endscreen_extract: started attachmentId=${payload.attachmentId} matchId=${payload.matchId}`,
     );
 
-    const attachment = await getAttachment(helpers, payload);
-    if (attachment.type !== 'LOL_RESULT_SCREEN') {
-      throw new Error(
-        `Attachment ${payload.attachmentId} is not a LOL_RESULT_SCREEN.`,
-      );
-    }
-
-    const extractionResult = await getExtractionResult(helpers, payload.attachmentId);
-    if (extractionResult.status === 'DONE') {
-      helpers.logger.info(
-        `lol_endscreen_extract: skipped attachmentId=${payload.attachmentId} reason=already_done`,
-      );
-      return;
-    }
-
-    const members = await getMatchMembers(helpers, payload.matchId);
-    if (members.length === 0) {
-      throw new Error(`Match ${payload.matchId} has no team members.`);
-    }
-
-    const bucket = deps.getBucket();
-    const region = deps.getRegion();
-    const downloaded = await deps.downloadAttachmentToFile({
-      bucket,
-      key: attachment.s3Key,
-      region,
-    });
+    let downloaded: DownloadedAttachment | null = null;
 
     try {
+      const attachment = await getAttachment(helpers, payload);
+      if (attachment.type !== 'LOL_RESULT_SCREEN') {
+        throw new Error(
+          `Attachment ${payload.attachmentId} is not a LOL_RESULT_SCREEN.`,
+        );
+      }
+
+      const extractionResult = await getExtractionResult(helpers, payload.attachmentId);
+      if (extractionResult.status === 'DONE') {
+        helpers.logger.info(
+          `lol_endscreen_extract: skipped attachmentId=${payload.attachmentId} reason=already_done`,
+        );
+        return;
+      }
+
+      const members = await getMatchMembers(helpers, payload.matchId);
+      if (members.length === 0) {
+        throw new Error(`Match ${payload.matchId} has no team members.`);
+      }
+
+      const bucket = deps.getBucket();
+      const region = deps.getRegion();
+      downloaded = await deps.downloadAttachmentToFile({
+        bucket,
+        key: attachment.s3Key,
+        region,
+      });
+
       const input = buildExtractionInput({
         jobId: String(helpers.job.id),
         attachmentId: payload.attachmentId,
@@ -116,7 +123,7 @@ export const buildLolEndscreenExtractTask = (
       );
     } catch (error) {
       if (isFinalAttempt(helpers.job.attempts, helpers.job.max_attempts)) {
-        await markFailed(helpers, payload.attachmentId);
+        await markFailedSafely(helpers, payload.attachmentId);
       }
 
       const message = error instanceof Error ? error.message : String(error);
@@ -125,7 +132,9 @@ export const buildLolEndscreenExtractTask = (
       );
       throw error;
     } finally {
-      await downloaded.cleanup();
+      if (downloaded) {
+        await downloaded.cleanup();
+      }
     }
   };
 };
@@ -171,7 +180,7 @@ async function getAttachment(
       select
         id,
         match_id as "matchId",
-        s3_key as "s3Key",
+        s3key as "s3Key",
         type
       from attachment
       where id = $1
@@ -332,6 +341,20 @@ async function markFailed(
   );
 }
 
+async function markFailedSafely(
+  helpers: JobHelpers,
+  attachmentId: string,
+): Promise<void> {
+  try {
+    await markFailed(helpers, attachmentId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    helpers.logger.error(
+      `lol_endscreen_extract: failed_to_mark_failed attachmentId=${attachmentId} error=${message}`,
+    );
+  }
+}
+
 function isFinalAttempt(attempts: number, maxAttempts: number): boolean {
   return attempts >= maxAttempts;
 }
@@ -354,11 +377,15 @@ function parseNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-async function downloadAttachmentToFile(input: {
+export async function downloadAttachmentToFile(input: {
   bucket: string;
   key: string;
   region: string;
 }): Promise<DownloadedAttachment> {
+  if (isLocalStorageKey(input.key)) {
+    return downloadLocalAttachmentToFile(input.key);
+  }
+
   const client = new S3Client({
     region: input.region,
     credentials: process.env.AWS_ACCESS_KEY_ID
@@ -437,4 +464,32 @@ async function streamToBuffer(body: unknown): Promise<Buffer> {
   }
 
   return Buffer.concat(chunks);
+}
+
+async function downloadLocalAttachmentToFile(
+  key: string,
+): Promise<DownloadedAttachment> {
+  const tempDir = await mkdtemp(path.join(tmpdir(), 'playnote-worker-ocr-'));
+  const sourcePath = resolveLocalStoragePath(
+    key,
+    resolveLocalStorageRoot(process.env.LOCAL_STORAGE_DIR),
+  );
+  const filePath = path.join(
+    tempDir,
+    `attachment${path.extname(sourcePath) || '.bin'}`,
+  );
+
+  try {
+    await copyFile(sourcePath, filePath);
+
+    return {
+      filePath,
+      cleanup: async () => {
+        await rm(tempDir, { recursive: true, force: true });
+      },
+    };
+  } catch (error) {
+    await rm(tempDir, { recursive: true, force: true });
+    throw error;
+  }
 }

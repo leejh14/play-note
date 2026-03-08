@@ -31,12 +31,10 @@ export class CreatePresignedUploadsUseCase {
     const uploads = await Promise.all(
       input.files.map(async (file) => {
         const uploadId = `sessions/${input.sessionId}/attachments/${uuidv7()}`;
-        const presignedUrl =
-          await this.s3StorageService.generatePresignedPutUrl(
-            uploadId,
-            file.contentType,
-          );
-        return { uploadId, presignedUrl };
+        return this.s3StorageService.createUploadTarget(
+          uploadId,
+          file.contentType,
+        );
       }),
     );
     return { uploads };

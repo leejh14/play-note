@@ -6,6 +6,7 @@ export const envValidationSchema = Joi.object({
     .default('development'),
 
   API_PORT: Joi.number().default(4000),
+  API_BASE_URL: Joi.string().uri().optional(),
   PUBLIC_BASE_URL: Joi.string().default('http://localhost:3000'),
 
   DB_HOST: Joi.string().default('localhost'),
@@ -18,6 +19,7 @@ export const envValidationSchema = Joi.object({
   AWS_ACCESS_KEY_ID: Joi.string().optional(),
   AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
   S3_BUCKET: Joi.string().default('playnote-attachments'),
+  LOCAL_STORAGE_DIR: Joi.string().optional(),
   GRAPHILE_WORKER_CONCURRENCY: Joi.number().integer().min(1).default(1),
   OCR_TIMEOUT_MS: Joi.number().integer().min(1).default(60000),
   OCR_TOP_K: Joi.number().integer().min(1).default(3),

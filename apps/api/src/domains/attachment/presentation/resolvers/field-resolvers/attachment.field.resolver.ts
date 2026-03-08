@@ -26,7 +26,10 @@ export class AttachmentFieldResolver {
     @CurrentAuth() auth: AuthContext,
   ): Promise<string> {
     this.assertSessionAccess(auth, attachment.sessionId);
-    return this.s3StorageService.getSignedUrl(attachment.s3Key);
+    return this.s3StorageService.getSignedUrl(
+      attachment.s3Key,
+      attachment.contentType,
+    );
   }
 
   @ResolveField(() => ExtractionResult, { nullable: true })

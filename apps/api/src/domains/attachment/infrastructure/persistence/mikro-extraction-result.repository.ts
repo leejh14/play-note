@@ -20,7 +20,11 @@ export class MikroExtractionResultRepository implements IExtractionResultReposit
   }
 
   async findByMatchId(matchId: string): Promise<ExtractionResult[]> {
-    const list = await this.em.find(ExtractionResultOrmEntity, { matchId });
+    const list = await this.em.find(
+      ExtractionResultOrmEntity,
+      { matchId },
+      { orderBy: { createdAt: 'desc' } },
+    );
     return list.map((o) => this.toDomainEntity(o));
   }
 

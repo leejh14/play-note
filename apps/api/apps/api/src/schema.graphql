@@ -2,6 +2,16 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AdminLockInput {
+  clientMutationId: String
+  sessionId: ID!
+}
+
+type AdminLockPayload {
+  clientMutationId: String
+  session: Session
+}
+
 input AdminUnlockInput {
   clientMutationId: String
   sessionId: ID!
@@ -380,6 +390,7 @@ type MatchTeamMember {
 }
 
 type Mutation {
+  adminLock(input: AdminLockInput!): AdminLockPayload!
   adminUnlock(input: AdminUnlockInput!): AdminUnlockPayload!
   archiveFriend(input: ArchiveFriendInput!): ArchiveFriendPayload!
   bulkSetTeams(input: BulkSetTeamsInput!): BulkSetTeamsPayload!
@@ -465,7 +476,9 @@ type PublicSession {
   comments: [Comment!]!
   contentType: ContentType!
   createdAt: DateTime!
+  effectiveLocked: Boolean!
   id: ID!
+  isStructureLocked: Boolean!
   matchCount: Int!
   matches: [PublicMatch!]!
   startsAt: DateTime!
@@ -531,7 +544,7 @@ type Session implements Node {
   createdAt: DateTime!
   effectiveLocked: Boolean!
   id: ID!
-  isAdminUnlocked: Boolean!
+  isStructureLocked: Boolean!
   matchCount: Int!
   matches: [Match!]!
   startsAt: DateTime!

@@ -27,7 +27,7 @@ export interface SessionReconstituteProps extends BaseEntityProps {
   readonly status: SessionStatus;
   readonly editorToken: string;
   readonly adminToken: string;
-  readonly isAdminUnlocked: boolean;
+  readonly isStructureLocked: boolean;
   readonly attendances: Attendance[];
   readonly teamPresetMembers: TeamPresetMember[];
 }
@@ -55,7 +55,7 @@ export class Session extends AggregateRoot {
   private _status: SessionStatus;
   private readonly _editorToken: string;
   private readonly _adminToken: string;
-  private _isAdminUnlocked: boolean;
+  private _isStructureLocked: boolean;
   private readonly _attendances: Attendance[] = [];
   private readonly _teamPresetMembers: TeamPresetMember[] = [];
 
@@ -67,7 +67,7 @@ export class Session extends AggregateRoot {
     this._status = props.status;
     this._editorToken = props.editorToken;
     this._adminToken = props.adminToken;
-    this._isAdminUnlocked = props.isAdminUnlocked;
+    this._isStructureLocked = props.isStructureLocked;
     this._attendances.push(...props.attendances);
     this._teamPresetMembers.push(...props.teamPresetMembers);
   }
@@ -93,7 +93,7 @@ export class Session extends AggregateRoot {
       status: SessionStatus.SCHEDULED,
       editorToken,
       adminToken,
-      isAdminUnlocked: false,
+      isStructureLocked: false,
       attendances,
       teamPresetMembers: [],
       createdAt: now,
@@ -129,8 +129,8 @@ export class Session extends AggregateRoot {
     return this._adminToken;
   }
 
-  get isAdminUnlocked(): boolean {
-    return this._isAdminUnlocked;
+  get isStructureLocked(): boolean {
+    return this._isStructureLocked;
   }
 
   confirm(): void {
@@ -230,21 +230,19 @@ export class Session extends AggregateRoot {
     return this._teamPresetMembers.filter((m) => m.team === team);
   }
 
-  checkStructureChangeAllowed(attachmentCount: number): void {
-    const effectiveLocked =
-      attachmentCount > 0 && !this._isAdminUnlocked;
-    if (effectiveLocked) {
+  checkStructureChangeAllowed(): void {
+    if (this._isStructureLocked) {
       throw new SessionLockedException();
     }
   }
 
-  adminUnlock(): void {
-    this._isAdminUnlocked = true;
+  adminLock(): void {
+    this._isStructureLocked = true;
     this.touch();
   }
 
-  adminRelock(): void {
-    this._isAdminUnlocked = false;
+  adminUnlock(): void {
+    this._isStructureLocked = false;
     this.touch();
   }
 

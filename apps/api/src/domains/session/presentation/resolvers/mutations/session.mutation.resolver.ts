@@ -16,6 +16,7 @@ import { UpdateSessionUseCase } from '@domains/session/application/use-cases/com
 import { MarkDoneUseCase } from '@domains/session/application/use-cases/commands/mark-done.use-case';
 import { ReopenSessionUseCase } from '@domains/session/application/use-cases/commands/reopen-session.use-case';
 import { DeleteSessionUseCase } from '@domains/session/application/use-cases/commands/delete-session.use-case';
+import { AdminLockUseCase } from '@domains/session/application/use-cases/commands/admin-lock.use-case';
 import { SetAttendanceUseCase } from '@domains/session/application/use-cases/commands/set-attendance.use-case';
 import { SetTeamMemberUseCase } from '@domains/session/application/use-cases/commands/set-team-member.use-case';
 import { BulkSetTeamsUseCase } from '@domains/session/application/use-cases/commands/bulk-set-teams.use-case';
@@ -44,6 +45,7 @@ import {
   BulkSetTeamsPayload,
   CreateCommentPayload,
   DeleteCommentPayload,
+  AdminLockPayload,
   AdminUnlockPayload,
 } from '@domains/session/presentation/graphql/types/session-mutation.payload.gql';
 import { CreateSessionInput } from '@domains/session/presentation/graphql/inputs/create-session.input.gql';
@@ -57,6 +59,7 @@ import { SetTeamMemberInput } from '@domains/session/presentation/graphql/inputs
 import { BulkSetTeamsInput } from '@domains/session/presentation/graphql/inputs/bulk-set-teams.input.gql';
 import { CreateCommentInput } from '@domains/session/presentation/graphql/inputs/create-comment.input.gql';
 import { DeleteCommentInput } from '@domains/session/presentation/graphql/inputs/delete-comment.input.gql';
+import { AdminLockInput } from '@domains/session/presentation/graphql/inputs/admin-lock.input.gql';
 import { AdminUnlockInput } from '@domains/session/presentation/graphql/inputs/admin-unlock.input.gql';
 import { SessionGqlMapper } from '@domains/session/presentation/mappers/session.gql.mapper';
 import { CommentGqlMapper } from '@domains/session/presentation/mappers/comment.gql.mapper';
@@ -70,6 +73,7 @@ export class SessionMutationResolver {
     private readonly markDoneUseCase: MarkDoneUseCase,
     private readonly reopenSessionUseCase: ReopenSessionUseCase,
     private readonly deleteSessionUseCase: DeleteSessionUseCase,
+    private readonly adminLockUseCase: AdminLockUseCase,
     private readonly setAttendanceUseCase: SetAttendanceUseCase,
     private readonly setTeamMemberUseCase: SetTeamMemberUseCase,
     private readonly bulkSetTeamsUseCase: BulkSetTeamsUseCase,
@@ -367,6 +371,32 @@ export class SessionMutationResolver {
     return Object.assign(new DeleteCommentPayload(), {
       clientMutationId: input.clientMutationId,
       deletedCommentLocalId: commentId,
+    });
+  }
+
+  @RequireAdmin()
+  @Mutation(() => AdminLockPayload, { nullable: false })
+  async adminLock(
+    @Args('input', { type: () => AdminLockInput })
+    input: AdminLockInput,
+    @CurrentAuth() auth: AuthContext,
+  ): Promise<AdminLockPayload> {
+    const sessionId = this.decodeGlobalId(input.sessionId, 'Session');
+    this.assertSessionAccess(auth, sessionId);
+    const output = await this.adminLockUseCase.execute(
+      new SessionIdInputDto({
+        sessionId,
+      }),
+    );
+    const session = await this.getSessionUseCase.execute(
+      new SessionIdInputDto({
+        sessionId: output.id,
+      }),
+    );
+    return Object.assign(new AdminLockPayload(), {
+      clientMutationId: input.clientMutationId,
+      sessionId: output.id,
+      session: SessionGqlMapper.toGql(session),
     });
   }
 

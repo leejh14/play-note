@@ -9,6 +9,7 @@ import { ConfirmSessionUseCase } from './use-cases/commands/confirm-session.use-
 import { MarkDoneUseCase } from './use-cases/commands/mark-done.use-case';
 import { ReopenSessionUseCase } from './use-cases/commands/reopen-session.use-case';
 import { DeleteSessionUseCase } from './use-cases/commands/delete-session.use-case';
+import { AdminLockUseCase } from './use-cases/commands/admin-lock.use-case';
 import { AdminUnlockUseCase } from './use-cases/commands/admin-unlock.use-case';
 import { SetAttendanceUseCase } from './use-cases/commands/set-attendance.use-case';
 import { SetTeamMemberUseCase } from './use-cases/commands/set-team-member.use-case';
@@ -35,6 +36,7 @@ import { GetCommentUseCase } from './use-cases/queries/get-comment.use-case';
     MarkDoneUseCase,
     ReopenSessionUseCase,
     DeleteSessionUseCase,
+    AdminLockUseCase,
     AdminUnlockUseCase,
     SetAttendanceUseCase,
     SetTeamMemberUseCase,
@@ -54,6 +56,7 @@ import { GetCommentUseCase } from './use-cases/queries/get-comment.use-case';
     MarkDoneUseCase,
     ReopenSessionUseCase,
     DeleteSessionUseCase,
+    AdminLockUseCase,
     AdminUnlockUseCase,
     SetAttendanceUseCase,
     SetTeamMemberUseCase,

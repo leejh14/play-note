@@ -33,7 +33,7 @@ export class SessionOrmEntity {
   adminToken!: string;
 
   @Property({ columnType: 'boolean', default: false })
-  isAdminUnlocked = false;
+  isStructureLocked = false;
 
   @Property({ columnType: 'timestamptz' })
   createdAt!: Date;

@@ -9,7 +9,7 @@ export class SessionDetailOutputDto {
   readonly title: string | null;
   readonly startsAt: Date;
   readonly status: SessionStatus;
-  readonly isAdminUnlocked: boolean;
+  readonly isStructureLocked: boolean;
   readonly editorToken: string;
   readonly adminToken: string;
   readonly attendances: AttendanceOutputDto[];
@@ -22,7 +22,7 @@ export class SessionDetailOutputDto {
     title: string | null;
     startsAt: Date;
     status: SessionStatus;
-    isAdminUnlocked: boolean;
+    isStructureLocked: boolean;
     editorToken: string;
     adminToken: string;
     attendances: AttendanceOutputDto[];
@@ -34,7 +34,7 @@ export class SessionDetailOutputDto {
     this.title = props.title;
     this.startsAt = props.startsAt;
     this.status = props.status;
-    this.isAdminUnlocked = props.isAdminUnlocked;
+    this.isStructureLocked = props.isStructureLocked;
     this.editorToken = props.editorToken;
     this.adminToken = props.adminToken;
     this.attendances = props.attendances;

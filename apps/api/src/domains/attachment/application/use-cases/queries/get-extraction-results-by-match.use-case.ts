@@ -15,6 +15,12 @@ export class GetExtractionResultsByMatchUseCase {
     const results = await this.extractionResultRepository.findByMatchId(
       input.matchId,
     );
-    return results.map((result) => ExtractionResultMapper.toDto(result));
+    return results
+      .slice()
+      .sort(
+        (left, right) =>
+          right.createdAt.getTime() - left.createdAt.getTime(),
+      )
+      .map((result) => ExtractionResultMapper.toDto(result));
   }
 }

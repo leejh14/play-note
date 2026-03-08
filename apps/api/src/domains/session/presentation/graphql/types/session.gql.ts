@@ -30,7 +30,7 @@ export class Session implements Node {
   status!: SessionStatus;
 
   @Field(() => Boolean, { nullable: false })
-  isAdminUnlocked!: boolean;
+  isStructureLocked!: boolean;
 
   @Field(() => Int, { nullable: false })
   attendingCount!: number;

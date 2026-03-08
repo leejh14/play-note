@@ -2,8 +2,14 @@ jest.mock('@shared/infrastructure/process/execa.client', () => ({
   runExeca: jest.fn(),
 }));
 
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import type { JobHelpers } from 'graphile-worker';
-import { buildLolEndscreenExtractTask } from './lol_endscreen_extract';
+import {
+  buildLolEndscreenExtractTask,
+  downloadAttachmentToFile,
+} from './lol_endscreen_extract';
 
 describe('lol_endscreen_extract task', () => {
   it('marks extraction results as DONE when OCR succeeds', async () => {
@@ -256,6 +262,58 @@ describe('lol_endscreen_extract task', () => {
 
     expect(query).toHaveBeenCalledTimes(3);
     expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks extraction results as FAILED on the final retry when setup fails before OCR runs', async () => {
+    const query = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('column "s3_key" does not exist'))
+      .mockResolvedValueOnce({ rows: [] });
+    const task = buildLolEndscreenExtractTask({
+      extractionService: { execute: jest.fn() },
+    });
+    const helpers = createHelpers(query, {
+      id: 'job-4',
+      attempts: 3,
+      max_attempts: 3,
+    });
+
+    await expect(
+      task({ attachmentId: 'attachment-1', matchId: 'match-1' }, helpers),
+    ).rejects.toThrow('column "s3_key" does not exist');
+
+    expect(query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('update extraction_result'),
+      ['attachment-1', 'FAILED'],
+    );
+  });
+
+  it('downloads locally stored attachments for OCR jobs', async () => {
+    const localStorageDir = await mkdtemp(
+      path.join(tmpdir(), 'playnote-worker-local-storage-'),
+    );
+    const storageKey = 'local://sessions/session-1/attachments/object-1.png';
+    const sourcePath = path.join(
+      localStorageDir,
+      'sessions/session-1/attachments/object-1.png',
+    );
+
+    await mkdir(path.dirname(sourcePath), { recursive: true });
+    await writeFile(sourcePath, 'image-bytes');
+    process.env.LOCAL_STORAGE_DIR = localStorageDir;
+
+    const downloaded = await downloadAttachmentToFile({
+      bucket: 'unused',
+      key: storageKey,
+      region: 'ap-northeast-2',
+    });
+
+    await expect(readFile(downloaded.filePath, 'utf8')).resolves.toBe('image-bytes');
+
+    await downloaded.cleanup();
+    await rm(localStorageDir, { recursive: true, force: true });
+    delete process.env.LOCAL_STORAGE_DIR;
   });
 });
 

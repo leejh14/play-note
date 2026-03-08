@@ -85,6 +85,12 @@ export class PublicSession {
   @Field(() => SessionStatus, { nullable: false })
   status!: SessionStatus;
 
+  @Field(() => Boolean, { nullable: false })
+  isStructureLocked!: boolean;
+
+  @Field(() => Boolean, { nullable: false })
+  effectiveLocked!: boolean;
+
   @Field(() => Int, { nullable: false })
   attendingCount!: number;
 

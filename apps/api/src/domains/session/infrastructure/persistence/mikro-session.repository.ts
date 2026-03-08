@@ -86,7 +86,7 @@ export class MikroSessionRepository implements ISessionRepository {
       existing.title = orm.title;
       existing.startsAt = orm.startsAt;
       existing.status = orm.status;
-      existing.isAdminUnlocked = orm.isAdminUnlocked;
+      existing.isStructureLocked = orm.isStructureLocked;
       existing.updatedAt = orm.updatedAt;
       existing.attendances.removeAll();
       for (const a of orm.attendances.getItems()) {
@@ -163,7 +163,7 @@ export class MikroSessionRepository implements ISessionRepository {
       status: orm.status as SessionStatus,
       editorToken: orm.editorToken,
       adminToken: orm.adminToken,
-      isAdminUnlocked: orm.isAdminUnlocked,
+      isStructureLocked: orm.isStructureLocked,
       attendances,
       teamPresetMembers,
       createdAt: orm.createdAt,
@@ -180,7 +180,7 @@ export class MikroSessionRepository implements ISessionRepository {
     orm.status = session.status;
     orm.editorToken = session.editorToken;
     orm.adminToken = session.adminToken;
-    orm.isAdminUnlocked = session.isAdminUnlocked;
+    orm.isStructureLocked = session.isStructureLocked;
     orm.createdAt = session.createdAt;
     orm.updatedAt = session.updatedAt;
 

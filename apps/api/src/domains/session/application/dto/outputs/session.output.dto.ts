@@ -7,6 +7,7 @@ export class SessionOutputDto {
   readonly title: string | null;
   readonly startsAt: Date;
   readonly status: SessionStatus;
+  readonly isStructureLocked: boolean;
   readonly attendingCount: number;
   readonly matchCount: number;
   readonly createdAt: Date;
@@ -17,6 +18,7 @@ export class SessionOutputDto {
     title: string | null;
     startsAt: Date;
     status: SessionStatus;
+    isStructureLocked: boolean;
     attendingCount: number;
     matchCount: number;
     createdAt: Date;
@@ -26,6 +28,7 @@ export class SessionOutputDto {
     this.title = props.title;
     this.startsAt = props.startsAt;
     this.status = props.status;
+    this.isStructureLocked = props.isStructureLocked;
     this.attendingCount = props.attendingCount;
     this.matchCount = props.matchCount;
     this.createdAt = props.createdAt;

@@ -29,10 +29,10 @@ export class CreatePresignedUploadUseCase {
       });
     }
     const uploadId = `sessions/${input.sessionId}/attachments/${uuidv7()}`;
-    const presignedUrl = await this.s3StorageService.generatePresignedPutUrl(
+    const upload = await this.s3StorageService.createUploadTarget(
       uploadId,
       input.contentType,
     );
-    return { uploadId, presignedUrl };
+    return upload;
   }
 }

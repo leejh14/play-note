@@ -41,6 +41,8 @@ export class PublicSessionGqlMapper {
     gql.title = data.session.title;
     gql.startsAt = data.session.startsAt;
     gql.status = data.session.status;
+    gql.isStructureLocked = data.session.isStructureLocked;
+    gql.effectiveLocked = data.session.isStructureLocked;
     gql.attendingCount = data.session.attendances.filter(
       (attendance) => attendance.status === AttendanceStatus.ATTENDING,
     ).length;

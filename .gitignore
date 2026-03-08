@@ -33,6 +33,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+.playnote-storage/
 
 # Testing
 coverage/

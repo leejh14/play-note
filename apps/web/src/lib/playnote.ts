@@ -4,6 +4,8 @@ const GRAPHQL_ENDPOINT =
 const TOKEN_PREFIX = "playnote:session";
 const ACTIVE_SESSION_KEY = "playnote:active-session-id";
 const TOKEN_KEY_SUFFIX = "token";
+const EDITOR_TOKEN_KEY_SUFFIX = "editor-token";
+const ADMIN_TOKEN_KEY_SUFFIX = "admin-token";
 const LAST_USED_AT_KEY_SUFFIX = "last-used-at";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -22,11 +24,79 @@ const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat("en-US", {
   numeric: "auto",
 });
 
-const SESSION_FIELDS = `
+const EXTRACTION_RESULT_SUMMARY_FIELDS = `
+  id
+  status
+  createdAt
+`;
+
+const EXTRACTION_RESULT_DETAIL_FIELDS = `
+  ${EXTRACTION_RESULT_SUMMARY_FIELDS}
+  model
+  result
+`;
+
+const MATCH_SUMMARY_FIELDS = `
+  id
+  matchNo
+  status
+  winnerSide
+  teamASide
+  isConfirmed
+  teamMembers {
+    id
+    team
+    lane
+    champion
+    friend {
+      id
+      displayName
+    }
+  }
+  attachments {
+    id
+    type
+    originalFileName
+  }
+  extractionResults {
+    ${EXTRACTION_RESULT_SUMMARY_FIELDS}
+  }
+`;
+
+const MATCH_DETAIL_FIELDS = `
+  id
+  matchNo
+  status
+  winnerSide
+  teamASide
+  isConfirmed
+  teamMembers {
+    id
+    team
+    lane
+    champion
+    friend {
+      id
+      displayName
+    }
+  }
+  attachments {
+    id
+    type
+    originalFileName
+  }
+  extractionResults {
+    ${EXTRACTION_RESULT_DETAIL_FIELDS}
+  }
+`;
+
+const SESSION_DETAIL_FIELDS = `
   id
   title
   contentType
   status
+  isStructureLocked
+  effectiveLocked
   startsAt
   attendingCount
   matchCount
@@ -48,31 +118,50 @@ const SESSION_FIELDS = `
     }
   }
   matches {
+    ${MATCH_DETAIL_FIELDS}
+  }
+  attachments {
     id
-    matchNo
+    type
+    originalFileName
+  }
+  comments {
+    id
+    body
+    displayName
+    createdAt
+  }
+`;
+
+const SESSION_SUMMARY_FIELDS = `
+  id
+  title
+  contentType
+  status
+  isStructureLocked
+  effectiveLocked
+  startsAt
+  attendingCount
+  matchCount
+  attendances {
+    id
     status
-    winnerSide
-    teamASide
-    isConfirmed
-    teamMembers {
+    friend {
       id
-      team
-      lane
-      champion
-      friend {
-        id
-        displayName
-      }
+      displayName
     }
-    attachments {
+  }
+  teamPresetMembers {
+    id
+    team
+    lane
+    friend {
       id
-      type
-      originalFileName
+      displayName
     }
-    extractionResults {
-      id
-      status
-    }
+  }
+  matches {
+    ${MATCH_SUMMARY_FIELDS}
   }
   attachments {
     id
@@ -90,7 +179,7 @@ const SESSION_FIELDS = `
 const SESSION_QUERY = `
   query SessionDetail($sessionId: ID!) {
     session(sessionId: $sessionId) {
-      ${SESSION_FIELDS}
+      ${SESSION_DETAIL_FIELDS}
     }
   }
 `;
@@ -98,7 +187,7 @@ const SESSION_QUERY = `
 const PUBLIC_SESSION_QUERY = `
   query PublicSessionDetail($sessionId: ID!) {
     publicSession(sessionId: $sessionId) {
-      ${SESSION_FIELDS}
+      ${SESSION_DETAIL_FIELDS}
     }
   }
 `;
@@ -108,7 +197,7 @@ const PUBLIC_SESSIONS_QUERY = `
     publicSessions(first: 50, orderBy: [{ field: STARTS_AT, direction: DESC }]) {
       edges {
         node {
-          ${SESSION_FIELDS}
+          ${SESSION_SUMMARY_FIELDS}
         }
       }
     }
@@ -123,6 +212,14 @@ const FRIENDS_QUERY = `
       riotGameName
       riotTagLine
       isArchived
+    }
+  }
+`;
+
+const AUTH_CONTEXT_QUERY = `
+  query AuthContext {
+    authContext {
+      role
     }
   }
 `;
@@ -186,7 +283,7 @@ const SET_ATTENDANCE_MUTATION = `
   mutation SetAttendance($input: SetAttendanceInput!) {
     setAttendance(input: $input) {
       session {
-        ${SESSION_FIELDS}
+        ${SESSION_DETAIL_FIELDS}
       }
     }
   }
@@ -196,7 +293,7 @@ const SET_TEAM_MEMBER_MUTATION = `
   mutation SetTeamMember($input: SetTeamMemberInput!) {
     setTeamMember(input: $input) {
       session {
-        ${SESSION_FIELDS}
+        ${SESSION_DETAIL_FIELDS}
       }
     }
   }
@@ -206,7 +303,27 @@ const CONFIRM_SESSION_MUTATION = `
   mutation ConfirmSession($input: ConfirmSessionInput!) {
     confirmSession(input: $input) {
       session {
-        ${SESSION_FIELDS}
+        ${SESSION_DETAIL_FIELDS}
+      }
+    }
+  }
+`;
+
+const ADMIN_LOCK_MUTATION = `
+  mutation AdminLock($input: AdminLockInput!) {
+    adminLock(input: $input) {
+      session {
+        ${SESSION_DETAIL_FIELDS}
+      }
+    }
+  }
+`;
+
+const ADMIN_UNLOCK_MUTATION = `
+  mutation AdminUnlock($input: AdminUnlockInput!) {
+    adminUnlock(input: $input) {
+      session {
+        ${SESSION_DETAIL_FIELDS}
       }
     }
   }
@@ -261,6 +378,8 @@ type GqlTeam = "A" | "B";
 type GqlMatchStatus = "COMPLETED" | "DRAFT" | "LINEUP_LOCKED";
 type GqlAttachmentType = "FUTSAL_PHOTO" | "LOL_RESULT_SCREEN";
 type GqlSide = "BLUE" | "RED" | "UNKNOWN";
+type GqlExtractionStatus = "PENDING" | "DONE" | "FAILED";
+type GqlAuthRole = "ADMIN" | "EDITOR";
 
 type GraphQLErrorPayload = {
   message: string;
@@ -279,6 +398,8 @@ type SessionGraphData = {
   title: string | null;
   contentType: GqlContentType;
   status: GqlSessionStatus;
+  isStructureLocked: boolean;
+  effectiveLocked: boolean;
   startsAt: string;
   attendingCount: number;
   matchCount: number;
@@ -323,7 +444,10 @@ type SessionGraphData = {
     }>;
     extractionResults: Array<{
       id: string;
-      status: "PENDING" | "DONE" | "FAILED";
+      status: GqlExtractionStatus;
+      model?: string | null;
+      result?: Record<string, unknown> | null;
+      createdAt: string;
     }>;
   }>;
   attachments: Array<{
@@ -407,6 +531,7 @@ type CreateSessionMutationData = {
       id: string;
     } | null;
     editorToken: string;
+    adminToken: string;
   };
 };
 
@@ -424,6 +549,18 @@ type SetTeamMemberMutationData = {
 
 type ConfirmSessionMutationData = {
   confirmSession: {
+    session: SessionQueryData["session"] | null;
+  };
+};
+
+type AdminLockMutationData = {
+  adminLock: {
+    session: SessionQueryData["session"] | null;
+  };
+};
+
+type AdminUnlockMutationData = {
+  adminUnlock: {
     session: SessionQueryData["session"] | null;
   };
 };
@@ -466,12 +603,20 @@ type SessionAuth = {
   token: string;
 };
 
+type AuthContextQueryData = {
+  authContext: {
+    role: GqlAuthRole;
+  };
+};
+
 export type ContentType = "lol" | "futsal";
 export type SessionStatus = "confirmed" | "scheduled" | "done";
 export type AttendanceStatus = "yes" | "maybe" | "no";
 export type Lane = "TOP" | "JG" | "MID" | "ADC" | "SUP" | "UNKNOWN";
 export type Team = "A" | "B";
 export type Side = "BLUE" | "RED" | "UNKNOWN";
+export type MatchExtractionStatus = GqlExtractionStatus | "IDLE";
+export type SessionRole = "admin" | "editor";
 
 export interface Friend {
   id: string;
@@ -495,6 +640,20 @@ export interface SessionComment {
   createdAtLabel: string;
 }
 
+export interface MatchExtractionResult {
+  id: string;
+  status: GqlExtractionStatus;
+  model: string | null;
+  result: Record<string, unknown> | null;
+  createdAt: string;
+  winnerSide: Side;
+  teamASide: Side;
+  confidence: {
+    teamASide: number;
+    winner: number;
+  } | null;
+}
+
 export interface MatchResult {
   id: string;
   number: number;
@@ -505,6 +664,9 @@ export interface MatchResult {
   isConfirmed: boolean;
   endScreenFile?: string;
   ocrDone: boolean;
+  latestExtractionStatus: MatchExtractionStatus;
+  latestDoneExtraction: MatchExtractionResult | null;
+  extractionResults: MatchExtractionResult[];
   teamAPlayers: { name: string; lane: Lane; champion: string }[];
   teamBPlayers: { name: string; lane: Lane; champion: string }[];
 }
@@ -514,6 +676,8 @@ export interface Session {
   title: string;
   contentType: ContentType;
   status: SessionStatus;
+  isStructureLocked: boolean;
+  effectiveLocked: boolean;
   startsAt: string;
   date: string;
   time: string;
@@ -616,14 +780,39 @@ export function saveSessionToken(sessionId: string, token: string): void {
   touchSession(localSessionId);
 }
 
+function saveSessionEditorToken(sessionId: string, token: string): void {
+  if (!isBrowser()) {
+    return;
+  }
+
+  const localSessionId = ensureLocalId("Session", sessionId);
+  window.localStorage.setItem(
+    createSessionStorageKey(localSessionId, EDITOR_TOKEN_KEY_SUFFIX),
+    token,
+  );
+}
+
+function saveSessionAdminToken(sessionId: string, token: string): void {
+  if (!isBrowser()) {
+    return;
+  }
+
+  const localSessionId = ensureLocalId("Session", sessionId);
+  window.localStorage.setItem(
+    createSessionStorageKey(localSessionId, ADMIN_TOKEN_KEY_SUFFIX),
+    token,
+  );
+}
+
 export function getSessionToken(sessionId: string): string | null {
   if (!isBrowser()) {
     return null;
   }
 
   const localSessionId = ensureLocalId("Session", sessionId);
-  return window.localStorage.getItem(
-    createSessionStorageKey(localSessionId, TOKEN_KEY_SUFFIX),
+  return (
+    getStoredSessionToken(localSessionId, EDITOR_TOKEN_KEY_SUFFIX) ??
+    getStoredSessionToken(localSessionId, TOKEN_KEY_SUFFIX)
   );
 }
 
@@ -655,7 +844,7 @@ export async function fetchPublicSessions(): Promise<Session[]> {
 
 export async function fetchSessionById(sessionId: string): Promise<Session | null> {
   const localSessionId = ensureLocalId("Session", sessionId);
-  const token = getSessionToken(localSessionId);
+  const token = getPreferredSessionToken(localSessionId);
 
   if (!token) {
     return null;
@@ -665,6 +854,17 @@ export async function fetchSessionById(sessionId: string): Promise<Session | nul
     localSessionId,
     token,
   });
+}
+
+export async function fetchPreferredSessionById(
+  sessionId: string,
+): Promise<Session | null> {
+  const session = await fetchSessionById(sessionId);
+  if (session) {
+    return session;
+  }
+
+  return fetchPublicSessionById(sessionId);
 }
 
 export async function fetchPublicSessionById(sessionId: string): Promise<Session | null> {
@@ -718,6 +918,8 @@ export async function createSession(input: {
 
   const localSessionId = toLocalId("Session", sessionId);
   saveSessionToken(localSessionId, data.createSession.editorToken);
+  saveSessionEditorToken(localSessionId, data.createSession.editorToken);
+  saveSessionAdminToken(localSessionId, data.createSession.adminToken);
 
   return {
     sessionId: localSessionId,
@@ -804,6 +1006,48 @@ export async function confirmSessionSetup(sessionId: string): Promise<Session> {
 
   touchSession(auth.localSessionId);
   return requireMappedSession(data.confirmSession.session);
+}
+
+export async function adminLockSession(sessionId: string): Promise<Session> {
+  const auth = getRequiredSessionAuth(sessionId);
+  const data = await graphqlRequest<
+    AdminLockMutationData,
+    {
+      input: {
+        clientMutationId: string;
+        sessionId: string;
+      };
+    }
+  >(ADMIN_LOCK_MUTATION, {
+    input: {
+      clientMutationId: "admin-lock",
+      sessionId: ensureGlobalId("Session", sessionId),
+    },
+  }, auth);
+
+  touchSession(auth.localSessionId);
+  return requireMappedSession(data.adminLock.session);
+}
+
+export async function adminUnlockSession(sessionId: string): Promise<Session> {
+  const auth = getRequiredSessionAuth(sessionId);
+  const data = await graphqlRequest<
+    AdminUnlockMutationData,
+    {
+      input: {
+        clientMutationId: string;
+        sessionId: string;
+      };
+    }
+  >(ADMIN_UNLOCK_MUTATION, {
+    input: {
+      clientMutationId: "admin-unlock",
+      sessionId: ensureGlobalId("Session", sessionId),
+    },
+  }, auth);
+
+  touchSession(auth.localSessionId);
+  return requireMappedSession(data.adminUnlock.session);
 }
 
 export async function createMatchFromPreset(sessionId: string): Promise<{ matchId: string }> {
@@ -909,7 +1153,13 @@ export async function uploadMatchEndScreen(input: {
   );
 
   if (!uploadResponse.ok) {
-    throw new Error(`Upload failed with status ${uploadResponse.status}`);
+    const errorText = await uploadResponse.text();
+    const detail = errorText.trim();
+    throw new Error(
+      detail
+        ? `Upload failed with status ${uploadResponse.status}: ${detail}`
+        : `Upload failed with status ${uploadResponse.status}`,
+    );
   }
 
   const dimensions = await readImageDimensions(input.file);
@@ -976,6 +1226,30 @@ export async function fetchFriends(): Promise<Friend[]> {
   } catch (error) {
     handleAuthError(auth.localSessionId, error);
     return [];
+  }
+}
+
+export async function fetchSessionAuthRole(
+  sessionId: string,
+): Promise<SessionRole | null> {
+  const auth = getSessionAuth(sessionId);
+
+  if (!auth) {
+    return null;
+  }
+
+  try {
+    const data = await graphqlRequest<AuthContextQueryData>(
+      AUTH_CONTEXT_QUERY,
+      undefined,
+      auth,
+    );
+
+    touchSession(auth.localSessionId);
+    return data.authContext.role === "ADMIN" ? "admin" : "editor";
+  } catch (error) {
+    handleAuthError(auth.localSessionId, error);
+    return null;
   }
 }
 
@@ -1138,6 +1412,8 @@ function mapSession(session: SessionGraphData): Session {
     title: session.title ?? defaultSessionTitle(session.contentType),
     contentType: mapContentType(session.contentType),
     status: mapSessionStatus(session.status),
+    isStructureLocked: session.isStructureLocked,
+    effectiveLocked: session.effectiveLocked,
     startsAt: session.startsAt,
     date: DATE_FORMATTER.format(startsAt),
     time: TIME_FORMATTER.format(startsAt),
@@ -1188,6 +1464,14 @@ function mapMatch(match: SessionGraphData["matches"][number]): MatchResult {
   const resultAttachment = match.attachments.find(
     (attachment) => attachment.type === "LOL_RESULT_SCREEN",
   );
+  const extractionResults = match.extractionResults
+    .map(mapExtractionResult)
+    .sort(compareExtractionResultsDesc);
+  const latestDoneExtraction =
+    extractionResults.find((result) => result.status === "DONE") ?? null;
+  const latestExtractionStatus =
+    extractionResults[0]?.status ??
+    (resultAttachment ? "PENDING" : "IDLE");
   const winnerTeam = resolveWinnerTeam(match.winnerSide, match.teamASide);
 
   return {
@@ -1199,7 +1483,10 @@ function mapMatch(match: SessionGraphData["matches"][number]): MatchResult {
     teamASide: match.teamASide,
     isConfirmed: match.isConfirmed,
     endScreenFile: resultAttachment?.originalFileName ?? undefined,
-    ocrDone: match.extractionResults.some((result) => result.status === "DONE"),
+    ocrDone: latestDoneExtraction !== null,
+    latestExtractionStatus,
+    latestDoneExtraction,
+    extractionResults,
     teamAPlayers: match.teamMembers
       .filter((member) => member.team === "A")
       .map((member) => ({
@@ -1215,6 +1502,43 @@ function mapMatch(match: SessionGraphData["matches"][number]): MatchResult {
         champion: member.champion ?? "-",
       })),
   };
+}
+
+function mapExtractionResult(
+  result: SessionGraphData["matches"][number]["extractionResults"][number],
+): MatchExtractionResult {
+  const payload = asRecord(result.result);
+  const confidence = asRecord(payload?.confidence);
+
+  return {
+    id: toLocalId("ExtractionResult", result.id),
+    status: result.status,
+    model: result.model ?? null,
+    result: payload,
+    createdAt: result.createdAt,
+    winnerSide: mapDraftSide(payload?.winnerSide),
+    teamASide: mapDraftSide(payload?.teamASide),
+    confidence: confidence
+      ? {
+          teamASide: numberOrZero(confidence.teamASide),
+          winner: numberOrZero(confidence.winner),
+        }
+      : null,
+  };
+}
+
+function compareExtractionResultsDesc(
+  left: MatchExtractionResult,
+  right: MatchExtractionResult,
+): number {
+  const rightTime = Date.parse(right.createdAt);
+  const leftTime = Date.parse(left.createdAt);
+
+  if (Number.isFinite(rightTime) && Number.isFinite(leftTime)) {
+    return rightTime - leftTime;
+  }
+
+  return right.id.localeCompare(left.id);
 }
 
 function resolveWinnerTeam(winnerSide: GqlSide, teamASide: GqlSide): Team | null {
@@ -1271,6 +1595,31 @@ function mapLane(lane: GqlLane | null | undefined): Lane | undefined {
   }
 
   return lane;
+}
+
+function mapDraftSide(value: unknown): Side {
+  if (typeof value !== "string") {
+    return "UNKNOWN";
+  }
+
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "BLUE" || normalized === "RED") {
+    return normalized;
+  }
+
+  return "UNKNOWN";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function numberOrZero(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function defaultSessionTitle(contentType: GqlContentType): string {
@@ -1372,18 +1721,29 @@ function getDefaultSessionAuth(): SessionAuth | null {
   return listStoredSessionAuths()[0] ?? null;
 }
 
-function getRequiredSessionAuth(sessionId: string): SessionAuth {
+function getSessionAuth(sessionId: string): SessionAuth | null {
   const localSessionId = ensureLocalId("Session", sessionId);
-  const token = getSessionToken(localSessionId);
+  const token = getPreferredSessionToken(localSessionId);
 
   if (!token) {
-    throw new Error(`Missing session token for ${localSessionId}`);
+    return null;
   }
 
   return {
     localSessionId,
     token,
   };
+}
+
+function getRequiredSessionAuth(sessionId: string): SessionAuth {
+  const auth = getSessionAuth(sessionId);
+
+  if (!auth) {
+    const localSessionId = ensureLocalId("Session", sessionId);
+    throw new Error(`Missing session token for ${localSessionId}`);
+  }
+
+  return auth;
 }
 
 function getLastUsedAt(localSessionId: string): number {
@@ -1462,6 +1822,12 @@ function clearSessionAuth(localSessionId: string): void {
     createSessionStorageKey(localSessionId, TOKEN_KEY_SUFFIX),
   );
   window.localStorage.removeItem(
+    createSessionStorageKey(localSessionId, EDITOR_TOKEN_KEY_SUFFIX),
+  );
+  window.localStorage.removeItem(
+    createSessionStorageKey(localSessionId, ADMIN_TOKEN_KEY_SUFFIX),
+  );
+  window.localStorage.removeItem(
     createSessionStorageKey(localSessionId, LAST_USED_AT_KEY_SUFFIX),
   );
 
@@ -1472,6 +1838,22 @@ function clearSessionAuth(localSessionId: string): void {
 
 function createSessionStorageKey(localSessionId: string, suffix: string): string {
   return `${TOKEN_PREFIX}:${localSessionId}:${suffix}`;
+}
+
+function getStoredSessionToken(localSessionId: string, suffix: string): string | null {
+  if (!isBrowser()) {
+    return null;
+  }
+
+  return window.localStorage.getItem(createSessionStorageKey(localSessionId, suffix));
+}
+
+function getPreferredSessionToken(localSessionId: string): string | null {
+  return (
+    getStoredSessionToken(localSessionId, ADMIN_TOKEN_KEY_SUFFIX) ??
+    getStoredSessionToken(localSessionId, TOKEN_KEY_SUFFIX) ??
+    getStoredSessionToken(localSessionId, EDITOR_TOKEN_KEY_SUFFIX)
+  );
 }
 
 function ensureGlobalId(expectedType: string, id: string): string {

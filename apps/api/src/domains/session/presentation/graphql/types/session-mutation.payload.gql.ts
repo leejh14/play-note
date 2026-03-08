@@ -101,6 +101,14 @@ export class DeleteCommentPayload extends RelayMutationPayload {
   }
 }
 
+@ObjectType('AdminLockPayload')
+export class AdminLockPayload extends RelayMutationPayload {
+  sessionId!: string;
+
+  @Field(() => Session, { nullable: true })
+  session?: Session;
+}
+
 @ObjectType('AdminUnlockPayload')
 export class AdminUnlockPayload extends RelayMutationPayload {
   sessionId!: string;

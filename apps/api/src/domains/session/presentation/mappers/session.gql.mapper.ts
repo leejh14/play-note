@@ -20,11 +20,12 @@ export class SessionGqlMapper {
     gql.title = dto.title;
     gql.startsAt = dto.startsAt;
     gql.status = dto.status;
-    gql.isAdminUnlocked = 'isAdminUnlocked' in dto ? dto.isAdminUnlocked : false;
+    gql.isStructureLocked =
+      'isStructureLocked' in dto ? dto.isStructureLocked : false;
     gql.attendingCount =
       'attendingCount' in dto ? dto.attendingCount : dto.attendances.length;
     gql.matchCount = 'matchCount' in dto ? dto.matchCount : 0;
-    gql.effectiveLocked = false;
+    gql.effectiveLocked = gql.isStructureLocked;
     gql.attendances =
       'attendances' in dto
         ? dto.attendances.map((attendance) => AttendanceGqlMapper.toGql(attendance))

@@ -34,12 +34,7 @@ export class SessionFieldResolver {
     @CurrentAuth() auth: AuthContext,
   ): Promise<boolean> {
     this.assertSessionAccess(auth, session.localId);
-    const attachments = await this.getAttachmentsBySessionUseCase.execute(
-      new AttachmentsBySessionInputDto({
-        sessionId: session.localId,
-      }),
-    );
-    return attachments.length > 0 && !session.isAdminUnlocked;
+    return session.isStructureLocked;
   }
 
   @ResolveField(() => [Comment], { nullable: false })

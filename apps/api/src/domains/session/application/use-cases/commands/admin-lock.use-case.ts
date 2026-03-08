@@ -5,17 +5,17 @@ import { TransactionPropagation } from '@mikro-orm/core';
 import { ISessionRepository } from '@domains/session/domain/repositories/session.repository.interface';
 import { SESSION_REPOSITORY } from '@domains/session/domain/constants';
 import { NotFoundException } from '@shared/exceptions/not-found.exception';
-import { BulkSetTeamsInputDto } from '../../dto/inputs/bulk-set-teams.input.dto';
+import { SessionIdInputDto } from '../../dto/inputs/session-id.input.dto';
 
 @Injectable()
-export class BulkSetTeamsUseCase {
+export class AdminLockUseCase {
   constructor(
     @Inject(SESSION_REPOSITORY) private readonly sessionRepository: ISessionRepository,
     private readonly em: EntityManager,
   ) {}
 
   @Transactional({ propagation: TransactionPropagation.REQUIRED })
-  async execute(input: BulkSetTeamsInputDto): Promise<{ id: string }> {
+  async execute(input: SessionIdInputDto): Promise<{ id: string }> {
     const session = await this.sessionRepository.findById(input.sessionId);
     if (!session) {
       throw new NotFoundException({
@@ -23,14 +23,7 @@ export class BulkSetTeamsUseCase {
         errorCode: 'SESSION_NOT_FOUND',
       });
     }
-    session.checkStructureChangeAllowed();
-    session.bulkSetTeams(
-      input.assignments.map((a) => ({
-        friendId: a.friendId,
-        team: a.team,
-        lane: a.lane,
-      })),
-    );
+    session.adminLock();
     await this.sessionRepository.save(session);
     return { id: session.id };
   }

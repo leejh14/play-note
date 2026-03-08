@@ -16,9 +16,10 @@ import {
 import Link from "next/link";
 import {
   createMatchFromPreset,
-  fetchPublicSessionById,
+  fetchPreferredSessionById,
   getSessionToken,
   saveSessionToken,
+  type MatchResult,
   type Session,
 } from "@/lib/playnote";
 
@@ -64,7 +65,7 @@ function SessionDetailContent() {
         saveSessionToken(sessionId, token);
       }
 
-      const nextSession = await fetchPublicSessionById(sessionId);
+      const nextSession = await fetchPreferredSessionById(sessionId);
       if (!cancelled) {
         setSession(nextSession);
       }
@@ -257,7 +258,7 @@ function SessionDetailContent() {
                 <div className="flex items-center justify-between text-[13px]">
                   <span className="text-[var(--gray-700)]">End Screen</span>
                   <span className="text-[var(--primary)]">
-                    {match.ocrDone ? "OCR Done" : "OCR Pending"}
+                    {getOcrStatusLabel(match)}
                   </span>
                 </div>
                 {match.endScreenFile && (
@@ -359,4 +360,20 @@ function SessionDetailContent() {
       </div>
     </div>
   );
+}
+
+function getOcrStatusLabel(match: MatchResult): string {
+  if (match.latestExtractionStatus === "DONE") {
+    return "OCR Done";
+  }
+
+  if (match.latestExtractionStatus === "FAILED") {
+    return "OCR Failed";
+  }
+
+  if (match.latestExtractionStatus === "PENDING") {
+    return "OCR Pending";
+  }
+
+  return "No Upload";
 }
