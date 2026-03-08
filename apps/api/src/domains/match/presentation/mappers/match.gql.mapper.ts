@@ -13,6 +13,7 @@ export class MatchGqlMapper {
     gql.matchNo = dto.matchNo;
     gql.status = dto.status;
     gql.winnerSide = dto.winnerSide;
+    gql.winnerTeam = dto.winnerTeam;
     gql.teamASide = dto.teamASide;
     gql.isConfirmed = dto.isConfirmed;
     gql.teamMembers = dto.teamMembers.map((member) =>

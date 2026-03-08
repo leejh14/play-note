@@ -14,6 +14,9 @@ import { StatsOverviewOutputDto } from '../../dto/outputs/stats-overview.output.
 import { FriendStatsSummaryDto } from '../../dto/outputs/friend-stats-summary.dto';
 
 function computeMemberWon(match: MatchStatsRawDto, team: string): boolean {
+  if (match.winnerTeam) {
+    return match.winnerTeam === team;
+  }
   const teamAWon = match.winnerSide === match.teamASide;
   return (team === 'A' && teamAWon) || (team === 'B' && !teamAWon);
 }

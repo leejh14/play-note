@@ -42,6 +42,7 @@ const MATCH_SUMMARY_FIELDS = `
   status
   winnerSide
   teamASide
+  winnerTeam
   isConfirmed
   teamMembers {
     id
@@ -69,6 +70,7 @@ const MATCH_DETAIL_FIELDS = `
   status
   winnerSide
   teamASide
+  winnerTeam
   isConfirmed
   teamMembers {
     id
@@ -426,6 +428,7 @@ type SessionGraphData = {
     status: GqlMatchStatus;
     winnerSide: GqlSide;
     teamASide: GqlSide;
+    winnerTeam: GqlTeam | null;
     isConfirmed: boolean;
     teamMembers: Array<{
       id: string;
@@ -646,6 +649,7 @@ export interface MatchExtractionResult {
   model: string | null;
   result: Record<string, unknown> | null;
   createdAt: string;
+  winnerTeam: Team | null;
   winnerSide: Side;
   teamASide: Side;
   confidence: {
@@ -1083,7 +1087,8 @@ export async function confirmMatchResult(input: {
   sessionId: string;
   matchId: string;
   teamASide: Exclude<Side, "UNKNOWN">;
-  winnerSide: Exclude<Side, "UNKNOWN">;
+  winnerSide: Side;
+  winnerTeam?: Team;
 }): Promise<void> {
   const auth = getRequiredSessionAuth(input.sessionId);
 
@@ -1094,7 +1099,8 @@ export async function confirmMatchResult(input: {
         clientMutationId: string;
         matchId: string;
         teamASide: Exclude<Side, "UNKNOWN">;
-        winnerSide: Exclude<Side, "UNKNOWN">;
+        winnerSide: Side;
+        winnerTeam?: Team;
       };
     }
   >(CONFIRM_MATCH_RESULT_MUTATION, {
@@ -1103,6 +1109,7 @@ export async function confirmMatchResult(input: {
       matchId: ensureGlobalId("Match", input.matchId),
       teamASide: input.teamASide,
       winnerSide: input.winnerSide,
+      ...(input.winnerTeam ? { winnerTeam: input.winnerTeam } : {}),
     },
   }, auth);
 
@@ -1472,7 +1479,10 @@ function mapMatch(match: SessionGraphData["matches"][number]): MatchResult {
   const latestExtractionStatus =
     extractionResults[0]?.status ??
     (resultAttachment ? "PENDING" : "IDLE");
-  const winnerTeam = resolveWinnerTeam(match.winnerSide, match.teamASide);
+  const winnerTeam =
+    match.winnerTeam ??
+    latestDoneExtraction?.winnerTeam ??
+    resolveWinnerTeam(match.winnerSide, match.teamASide);
 
   return {
     id: toLocalId("Match", match.id),
@@ -1516,6 +1526,7 @@ function mapExtractionResult(
     model: result.model ?? null,
     result: payload,
     createdAt: result.createdAt,
+    winnerTeam: mapExtractionWinnerTeam(payload?.winnerTeam),
     winnerSide: mapDraftSide(payload?.winnerSide),
     teamASide: mapDraftSide(payload?.teamASide),
     confidence: confidence
@@ -1595,6 +1606,22 @@ function mapLane(lane: GqlLane | null | undefined): Lane | undefined {
   }
 
   return lane;
+}
+
+function mapExtractionWinnerTeam(value: unknown): Team | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "teama") {
+    return "A";
+  }
+  if (normalized === "teamb") {
+    return "B";
+  }
+
+  return null;
 }
 
 function mapDraftSide(value: unknown): Side {

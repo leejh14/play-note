@@ -82,6 +82,11 @@ def run_extraction(request: dict[str, Any]) -> dict[str, Any]:
         banner_evidence=banner_evidence,
         outcome=winner_outcome,
     )
+    winner_team, winner_team_evidence = infer_winner_team(
+        outcome=winner_outcome,
+        winner_side=winner_side,
+        team_a_side=team_a_side,
+    )
 
     matched_friend_ids = sorted(
         {item["friendId"] for item in blue_selected + red_selected}
@@ -97,12 +102,14 @@ def run_extraction(request: dict[str, Any]) -> dict[str, Any]:
         "winner": round(float(winner_evidence["bannerConfidence"]), 2)
         if winner_side != "unknown"
         else 0.0,
+        "winnerTeam": _winner_team_confidence(winner_team_evidence, winner_team),
     }
 
     result = {
         "jobId": request.get("jobId"),
         "status": "done",
         "winnerSide": winner_side,
+        "winnerTeam": winner_team,
         "teamASide": team_a_side,
         "confidence": confidence,
         "ocr": {
@@ -116,12 +123,14 @@ def run_extraction(request: dict[str, Any]) -> dict[str, Any]:
         "matching": blue_matching + red_matching,
         "teamASideEvidence": team_a_side_evidence,
         "winnerEvidence": winner_evidence,
+        "winnerTeamEvidence": winner_team_evidence,
         "matchedFriendIds": matched_friend_ids,
         "unmatched": unmatched,
     }
 
     return {
         "winnerSide": winner_side,
+        "winnerTeam": winner_team,
         "teamASide": team_a_side,
         "confidence": confidence,
         "model": DEFAULT_MODEL,
@@ -180,6 +189,27 @@ def infer_winner_side(
         "averageColor": banner_evidence["averageColor"],
         "outcome": outcome,
     }
+
+
+def infer_winner_team(
+    outcome: str,
+    winner_side: str,
+    team_a_side: str,
+) -> tuple[str, dict[str, str]]:
+    if outcome == "victory":
+        return "teamA", {"source": "outcome", "outcome": outcome}
+    if outcome == "defeat":
+        return "teamB", {"source": "outcome", "outcome": outcome}
+
+    if winner_side in {"blue", "red"} and team_a_side in {"blue", "red"}:
+        winner_team = "teamA" if winner_side == team_a_side else "teamB"
+        return winner_team, {
+            "source": "sideMatch",
+            "winnerSide": winner_side,
+            "teamASide": team_a_side,
+        }
+
+    return "unknown", {"source": "insufficient"}
 
 
 def detect_banner_side(
@@ -334,3 +364,9 @@ def _team_a_side_confidence(evidence: dict[str, int], team_a_side: str) -> float
         return 0.0
     score = max(evidence["countABlue"], evidence["countARed"])
     return round(min(score / 3, 1), 2)
+
+
+def _winner_team_confidence(evidence: dict[str, str], winner_team: str) -> float:
+    if winner_team == "unknown":
+        return 0.0
+    return 1.0 if evidence["source"] == "outcome" else 0.8

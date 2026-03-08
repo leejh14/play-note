@@ -7,6 +7,7 @@ import { TeamPresetMember } from './team-preset-member.gql';
 import { Comment } from './comment.gql';
 import { MatchStatus } from '@domains/match/domain/enums/match-status.enum';
 import { Side } from '@domains/match/domain/enums/side.enum';
+import { Team } from '@shared/domain/enums/team.enum';
 import { MatchTeamMember } from '@domains/match/presentation/graphql/types/match-team-member.gql';
 import { ExtractionResult } from '@domains/attachment/presentation/graphql/types/extraction-result.gql';
 import { AttachmentType } from '@domains/attachment/domain/enums/attachment-type.enum';
@@ -44,6 +45,9 @@ export class PublicMatch {
 
   @Field(() => Side, { nullable: false })
   winnerSide!: Side;
+
+  @Field(() => Team, { nullable: true })
+  winnerTeam!: Team | null;
 
   @Field(() => Side, { nullable: false })
   teamASide!: Side;

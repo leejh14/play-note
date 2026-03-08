@@ -743,6 +743,7 @@ function buildMatchOutput(id: string, sessionId: string): MatchOutputDto {
     matchNo: 1,
     status: MatchStatus.DRAFT,
     winnerSide: Side.UNKNOWN,
+    winnerTeam: null,
     teamASide: Side.UNKNOWN,
     isConfirmed: false,
     teamMembers: [

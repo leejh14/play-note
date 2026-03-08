@@ -49,6 +49,7 @@ export interface ExtractionInput {
 
 export interface ExtractionOutput {
   readonly winnerSide: 'blue' | 'red' | 'unknown';
+  readonly winnerTeam: 'teamA' | 'teamB' | 'unknown';
   readonly teamASide: 'blue' | 'red' | 'unknown';
   readonly confidence: Record<string, number>;
   readonly model: string;

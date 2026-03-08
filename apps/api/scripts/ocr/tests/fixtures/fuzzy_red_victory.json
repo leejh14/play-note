@@ -25,6 +25,7 @@
   },
   "expected": {
     "winnerSide": "red",
+    "winnerTeam": "teamA",
     "teamASide": "red",
     "status": "done",
     "teamASideEvidence": {

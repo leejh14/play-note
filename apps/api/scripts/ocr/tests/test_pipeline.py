@@ -20,6 +20,7 @@ class PipelineFixtureTestCase(unittest.TestCase):
                 expected = fixture["expected"]
 
                 self.assertEqual(output["winnerSide"], expected["winnerSide"])
+                self.assertEqual(output["winnerTeam"], expected["winnerTeam"])
                 self.assertEqual(output["teamASide"], expected["teamASide"])
                 self.assertEqual(output["result"]["status"], expected["status"])
                 self.assertEqual(
@@ -44,6 +45,7 @@ class PipelineFixtureTestCase(unittest.TestCase):
         shuffled_output = run_extraction(shuffled_input)
 
         self.assertEqual(original_output["winnerSide"], shuffled_output["winnerSide"])
+        self.assertEqual(original_output["winnerTeam"], shuffled_output["winnerTeam"])
         self.assertEqual(original_output["teamASide"], shuffled_output["teamASide"])
         self.assertEqual(
             original_output["result"]["teamASideEvidence"],

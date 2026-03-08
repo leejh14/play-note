@@ -60,8 +60,9 @@ describe('lol_endscreen_extract task', () => {
       .mockResolvedValueOnce({ rows: [] });
     const execute = jest.fn().mockResolvedValue({
       winnerSide: 'blue',
+      winnerTeam: 'teamA',
       teamASide: 'blue',
-      confidence: { teamASide: 1, winner: 0.87 },
+      confidence: { teamASide: 1, winner: 0.87, winnerTeam: 1.0 },
       model: 'paddleocr-lol-endscreen-v1',
       result: {
         status: 'done',

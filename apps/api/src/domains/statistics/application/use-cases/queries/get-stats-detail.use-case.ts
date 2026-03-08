@@ -19,6 +19,9 @@ import {
 } from '../../dto/outputs/stats-detail.output.dto';
 
 function computeMemberWon(match: MatchStatsRawDto, team: string): boolean {
+  if (match.winnerTeam) {
+    return match.winnerTeam === team;
+  }
   const teamAWon = match.winnerSide === match.teamASide;
   return (team === 'A' && teamAWon) || (team === 'B' && !teamAWon);
 }

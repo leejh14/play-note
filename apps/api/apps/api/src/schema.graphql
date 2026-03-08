@@ -154,6 +154,7 @@ input ConfirmMatchResultInput {
   matchId: ID!
   teamASide: Side!
   winnerSide: Side!
+  winnerTeam: Team
 }
 
 type ConfirmMatchResultPayload {
@@ -372,6 +373,7 @@ type Match implements Node {
   teamASide: Side!
   teamMembers: [MatchTeamMember!]!
   winnerSide: Side!
+  winnerTeam: Team
 }
 
 """매치 상태"""
@@ -467,6 +469,7 @@ type PublicMatch {
   teamASide: Side!
   teamMembers: [MatchTeamMember!]!
   winnerSide: Side!
+  winnerTeam: Team
 }
 
 type PublicSession {

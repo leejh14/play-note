@@ -1,5 +1,6 @@
 import { MatchStatus } from '@domains/match/domain/enums/match-status.enum';
 import { Side } from '@domains/match/domain/enums/side.enum';
+import { Team } from '@shared/domain/enums/team.enum';
 import { MatchTeamMemberOutputDto } from './match-team-member.output.dto';
 
 export class MatchOutputDto {
@@ -8,6 +9,7 @@ export class MatchOutputDto {
   readonly matchNo: number;
   readonly status: MatchStatus;
   readonly winnerSide: Side;
+  readonly winnerTeam: Team | null;
   readonly teamASide: Side;
   readonly isConfirmed: boolean;
   readonly teamMembers: MatchTeamMemberOutputDto[];
@@ -19,6 +21,7 @@ export class MatchOutputDto {
     matchNo: number;
     status: MatchStatus;
     winnerSide: Side;
+    winnerTeam: Team | null;
     teamASide: Side;
     isConfirmed: boolean;
     teamMembers: MatchTeamMemberOutputDto[];
@@ -29,6 +32,7 @@ export class MatchOutputDto {
     this.matchNo = props.matchNo;
     this.status = props.status;
     this.winnerSide = props.winnerSide;
+    this.winnerTeam = props.winnerTeam;
     this.teamASide = props.teamASide;
     this.isConfirmed = props.isConfirmed;
     this.teamMembers = props.teamMembers;

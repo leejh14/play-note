@@ -36,6 +36,7 @@ export class MatchStatsContextAcl implements IMatchStatsContextAcl {
       matchId: m.id,
       sessionId: m.session.id,
       winnerSide: m.winnerSide,
+      winnerTeam: m.winnerTeam,
       teamASide: m.teamASide,
       members: m.teamMembers.getItems().map((mtm) => ({
         friendId: mtm.friendId,

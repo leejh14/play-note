@@ -30,6 +30,7 @@ class EvaluateTestCase(unittest.TestCase):
     def test_compare_case_result_marks_exact_flags(self) -> None:
         expected = {
             "winnerSide": "unknown",
+            "winnerTeam": "teamA",
             "teamASide": "blue",
             "teamASideEvidence": {"countABlue": 5, "countARed": 0},
             "matchedFriendIds": ["friend-a1", "friend-a2"],
@@ -37,6 +38,7 @@ class EvaluateTestCase(unittest.TestCase):
         }
         output = {
             "winnerSide": "unknown",
+            "winnerTeam": "teamA",
             "teamASide": "blue",
             "result": {
                 "teamASideEvidence": {"countABlue": 5, "countARed": 0},
@@ -48,6 +50,7 @@ class EvaluateTestCase(unittest.TestCase):
         comparison = compare_case_result("case-id", expected, output)
 
         self.assertTrue(comparison["exact"]["winnerSideExact"])
+        self.assertTrue(comparison["exact"]["winnerTeamExact"])
         self.assertTrue(comparison["exact"]["teamASideExact"])
         self.assertTrue(comparison["exact"]["teamASideEvidenceExact"])
         self.assertTrue(comparison["exact"]["matchedFriendIdsExact"])

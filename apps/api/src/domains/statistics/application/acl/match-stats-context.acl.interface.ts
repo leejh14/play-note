@@ -11,6 +11,7 @@ export interface MatchStatsRawDto {
   readonly matchId: string;
   readonly sessionId: string;
   readonly winnerSide: string;
+  readonly winnerTeam: string | null;
   readonly teamASide: string;
   readonly members: MatchStatsMemberRawDto[];
 }

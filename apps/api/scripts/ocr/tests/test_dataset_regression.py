@@ -23,6 +23,7 @@ class DatasetRegressionTestCase(unittest.TestCase):
                 output = run_extraction(request)
 
                 self.assertEqual(output["winnerSide"], expected["winnerSide"])
+                self.assertEqual(output["winnerTeam"], expected["winnerTeam"])
                 self.assertEqual(output["teamASide"], expected["teamASide"])
                 self.assertEqual(
                     output["result"]["teamASideEvidence"],

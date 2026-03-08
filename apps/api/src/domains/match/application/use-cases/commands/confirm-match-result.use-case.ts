@@ -25,6 +25,7 @@ export class ConfirmMatchResultUseCase {
     }
     match.confirmResult({
       winnerSide: input.winnerSide,
+      winnerTeam: input.winnerTeam,
       teamASide: input.teamASide,
     });
     await this.matchRepository.save(match);

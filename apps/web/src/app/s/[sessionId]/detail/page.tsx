@@ -207,7 +207,7 @@ function MatchDetailContent() {
         : "Not set";
   const winnerSideLabel =
     winnerSideSelection === "UNKNOWN" ? "Not set" : winnerSideSelection;
-  const winnerTeam = resolveWinnerTeam(teamASideSelection, winnerSideSelection);
+  const winnerTeam = resolveWinnerTeam(teamASideSelection, winnerSideSelection) ?? match.winnerTeam;
   const teamAResult =
     winnerTeam === "A" ? "WIN" : winnerTeam === "B" ? "LOSE" : "-";
   const teamBResult =
@@ -271,13 +271,14 @@ function MatchDetailContent() {
     }
   };
 
+  const canConfirm =
+    canEdit &&
+    !isConfirming &&
+    teamASideSelection !== "UNKNOWN" &&
+    (winnerSideSelection !== "UNKNOWN" || winnerTeam !== null);
+
   const handleConfirmResult = async () => {
-    if (
-      !canEdit ||
-      isConfirming ||
-      teamASideSelection === "UNKNOWN" ||
-      winnerSideSelection === "UNKNOWN"
-    ) {
+    if (!canConfirm) {
       return;
     }
 
@@ -288,6 +289,7 @@ function MatchDetailContent() {
         matchId: match.id,
         teamASide: teamASideSelection,
         winnerSide: winnerSideSelection,
+        winnerTeam: winnerTeam ?? undefined,
       });
 
       const updatedSession = await fetchSessionById(session.id);
@@ -490,16 +492,29 @@ function MatchDetailContent() {
               {winnerSideLabel}
             </button>
           </div>
+          <div className="mt-[4px] flex items-center justify-between border-t border-[var(--gray-200)] pt-[8px] text-[13px]">
+            <span className="font-semibold text-[var(--black)]">Winner Team</span>
+            <span
+              className={
+                winnerTeam === "A"
+                  ? "font-bold text-[var(--primary)]"
+                  : winnerTeam === "B"
+                    ? "font-bold text-[var(--red)]"
+                    : "text-[var(--gray-500)]"
+              }
+            >
+              {winnerTeam === "A"
+                ? "Team A"
+                : winnerTeam === "B"
+                  ? "Team B"
+                  : "Not decided"}
+            </span>
+          </div>
         </div>
 
         <button
           onClick={() => void handleConfirmResult()}
-          disabled={
-            !canEdit ||
-            isConfirming ||
-            teamASideSelection === "UNKNOWN" ||
-            winnerSideSelection === "UNKNOWN"
-          }
+          disabled={!canConfirm}
           className="flex h-[52px] w-full items-center justify-center gap-[8px] rounded-[var(--radius-md)] bg-[var(--primary)] text-[16px] font-bold text-[var(--white)] disabled:opacity-50"
         >
           <Check size={20} />

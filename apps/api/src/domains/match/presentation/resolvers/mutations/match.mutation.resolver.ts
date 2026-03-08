@@ -182,6 +182,7 @@ export class MatchMutationResolver implements OnModuleInit {
       new ConfirmMatchResultInputDto({
         matchId,
         winnerSide: input.winnerSide,
+        winnerTeam: input.winnerTeam ?? null,
         teamASide: input.teamASide,
       }),
     );

@@ -59,6 +59,7 @@ def compare_case_result(
 
     exact = {
         "winnerSideExact": output["winnerSide"] == expected["winnerSide"],
+        "winnerTeamExact": output["winnerTeam"] == expected["winnerTeam"],
         "teamASideExact": output["teamASide"] == expected["teamASide"],
         "teamASideEvidenceExact": actual_result["teamASideEvidence"] == expected["teamASideEvidence"],
         "matchedFriendIdsExact": actual_matched == expected_matched,
@@ -73,6 +74,7 @@ def compare_case_result(
         },
         "expected": {
             "winnerSide": expected["winnerSide"],
+            "winnerTeam": expected["winnerTeam"],
             "teamASide": expected["teamASide"],
             "teamASideEvidence": expected["teamASideEvidence"],
             "matchedFriendIds": expected_matched,
@@ -80,6 +82,7 @@ def compare_case_result(
         },
         "actual": {
             "winnerSide": output["winnerSide"],
+            "winnerTeam": output["winnerTeam"],
             "teamASide": output["teamASide"],
             "teamASideEvidence": actual_result["teamASideEvidence"],
             "matchedFriendIds": actual_matched,
@@ -108,6 +111,7 @@ def summarize_results(case_results: list[dict[str, Any]]) -> dict[str, Any]:
         "caseCount": len(case_results),
         "exactPassCount": 0,
         "winnerSideExactCount": 0,
+        "winnerTeamExactCount": 0,
         "teamASideExactCount": 0,
         "teamASideEvidenceExactCount": 0,
         "matchedFriendIdsExactCount": 0,
@@ -130,6 +134,7 @@ def summarize_results(case_results: list[dict[str, Any]]) -> dict[str, Any]:
         metrics = case_result["matchedFriendIdsMetrics"]
         summary["exactPassCount"] += 1 if exact["all"] else 0
         summary["winnerSideExactCount"] += 1 if exact["winnerSideExact"] else 0
+        summary["winnerTeamExactCount"] += 1 if exact["winnerTeamExact"] else 0
         summary["teamASideExactCount"] += 1 if exact["teamASideExact"] else 0
         summary["teamASideEvidenceExactCount"] += 1 if exact["teamASideEvidenceExact"] else 0
         summary["matchedFriendIdsExactCount"] += 1 if exact["matchedFriendIdsExact"] else 0
@@ -166,6 +171,7 @@ def render_text_report(case_results: list[dict[str, Any]], summary: dict[str, An
             [
                 f"[{case_result['caseId']}]",
                 f"winnerSideExact={str(exact['winnerSideExact']).lower()} expected={case_result['expected']['winnerSide']} actual={case_result['actual']['winnerSide']}",
+                f"winnerTeamExact={str(exact['winnerTeamExact']).lower()} expected={case_result['expected']['winnerTeam']} actual={case_result['actual']['winnerTeam']}",
                 f"teamASideExact={str(exact['teamASideExact']).lower()} expected={case_result['expected']['teamASide']} actual={case_result['actual']['teamASide']}",
                 f"teamASideEvidenceExact={str(exact['teamASideEvidenceExact']).lower()} expected={json.dumps(case_result['expected']['teamASideEvidence'], ensure_ascii=False)} actual={json.dumps(case_result['actual']['teamASideEvidence'], ensure_ascii=False)}",
                 f"matchedFriendIdsExact={str(exact['matchedFriendIdsExact']).lower()} precision={metrics['precision']:.4f} recall={metrics['recall']:.4f} f1={metrics['f1']:.4f} tp={metrics['tp']} fp={metrics['fp']} fn={metrics['fn']}",
@@ -182,6 +188,7 @@ def render_text_report(case_results: list[dict[str, Any]], summary: dict[str, An
             f"cases={summary['caseCount']}",
             f"exactPassCount={summary['exactPassCount']}",
             f"winnerSideExactCount={summary['winnerSideExactCount']}",
+            f"winnerTeamExactCount={summary['winnerTeamExactCount']}",
             f"teamASideExactCount={summary['teamASideExactCount']}",
             f"teamASideEvidenceExactCount={summary['teamASideEvidenceExactCount']}",
             f"matchedFriendIdsExactCount={summary['matchedFriendIdsExactCount']}",

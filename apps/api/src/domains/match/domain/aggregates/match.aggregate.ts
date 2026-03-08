@@ -24,6 +24,7 @@ export interface MatchReconstituteProps extends BaseEntityProps {
   readonly matchNo: number;
   readonly status: MatchStatus;
   readonly winnerSide: Side;
+  readonly winnerTeam: Team | null;
   readonly teamASide: Side;
   readonly isConfirmed: boolean;
   readonly teamMembers: MatchTeamMember[];
@@ -31,6 +32,7 @@ export interface MatchReconstituteProps extends BaseEntityProps {
 
 export interface ConfirmResultProps {
   readonly winnerSide: Side;
+  readonly winnerTeam: Team | null;
   readonly teamASide: Side;
 }
 
@@ -39,6 +41,7 @@ export class Match extends AggregateRoot {
   private readonly _matchNo: number;
   private _status: MatchStatus;
   private _winnerSide: Side;
+  private _winnerTeam: Team | null;
   private _teamASide: Side;
   private _isConfirmed: boolean;
   private readonly _teamMembers: MatchTeamMember[] = [];
@@ -49,6 +52,7 @@ export class Match extends AggregateRoot {
     this._matchNo = props.matchNo;
     this._status = props.status;
     this._winnerSide = props.winnerSide;
+    this._winnerTeam = props.winnerTeam;
     this._teamASide = props.teamASide;
     this._isConfirmed = props.isConfirmed;
     this._teamMembers.push(...props.teamMembers);
@@ -73,6 +77,7 @@ export class Match extends AggregateRoot {
       matchNo: props.matchNo,
       status: MatchStatus.DRAFT,
       winnerSide: Side.UNKNOWN,
+      winnerTeam: null,
       teamASide: Side.UNKNOWN,
       isConfirmed: false,
       teamMembers,
@@ -101,6 +106,10 @@ export class Match extends AggregateRoot {
     return this._winnerSide;
   }
 
+  get winnerTeam(): Team | null {
+    return this._winnerTeam;
+  }
+
   get teamASide(): Side {
     return this._teamASide;
   }
@@ -127,6 +136,7 @@ export class Match extends AggregateRoot {
 
   confirmResult(props: ConfirmResultProps): void {
     this._winnerSide = props.winnerSide;
+    this._winnerTeam = props.winnerTeam;
     this._teamASide = props.teamASide;
     this._status = MatchStatus.COMPLETED;
     this._isConfirmed = true;

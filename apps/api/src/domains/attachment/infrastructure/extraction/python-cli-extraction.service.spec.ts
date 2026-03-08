@@ -46,6 +46,7 @@ describe('PythonCliExtractionService', () => {
     };
     const output: ExtractionOutput = {
       winnerSide: 'blue',
+      winnerTeam: 'teamA',
       teamASide: 'blue',
       confidence: {
         teamASide: 1,

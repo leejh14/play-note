@@ -46,6 +46,7 @@ export class MikroMatchRepository implements IMatchRepository {
       existing.matchNo = orm.matchNo;
       existing.status = orm.status;
       existing.winnerSide = orm.winnerSide;
+      existing.winnerTeam = orm.winnerTeam;
       existing.teamASide = orm.teamASide;
       existing.isConfirmed = orm.isConfirmed;
       existing.updatedAt = orm.updatedAt;
@@ -86,6 +87,7 @@ export class MikroMatchRepository implements IMatchRepository {
       matchNo: orm.matchNo,
       status: orm.status as MatchStatus,
       winnerSide: orm.winnerSide as Side,
+      winnerTeam: (orm.winnerTeam as Team) ?? null,
       teamASide: orm.teamASide as Side,
       isConfirmed: orm.isConfirmed,
       teamMembers,
@@ -101,6 +103,7 @@ export class MikroMatchRepository implements IMatchRepository {
     orm.matchNo = match.matchNo;
     orm.status = match.status;
     orm.winnerSide = match.winnerSide;
+    orm.winnerTeam = match.winnerTeam;
     orm.teamASide = match.teamASide;
     orm.isConfirmed = match.isConfirmed;
     orm.createdAt = match.createdAt;

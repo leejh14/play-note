@@ -82,6 +82,7 @@ export class PublicSessionGqlMapper {
     gql.matchNo = data.match.matchNo;
     gql.status = data.match.status;
     gql.winnerSide = data.match.winnerSide;
+    gql.winnerTeam = data.match.winnerTeam;
     gql.teamASide = data.match.teamASide;
     gql.isConfirmed = data.match.isConfirmed;
     gql.teamMembers = data.match.teamMembers.map((member) =>

@@ -2,6 +2,7 @@ import { Field, GraphQLISODateTime, ID, Int, ObjectType } from '@nestjs/graphql'
 import { Node } from '@shared/presentation/graphql/relay/node.resolver';
 import { MatchStatus } from '@domains/match/domain/enums/match-status.enum';
 import { Side } from '@domains/match/domain/enums/side.enum';
+import { Team } from '@shared/domain/enums/team.enum';
 import { Session } from '@domains/session/presentation/graphql/types/session.gql';
 import { MatchTeamMember } from './match-team-member.gql';
 import { Attachment } from '@domains/attachment/presentation/graphql/types/attachment.gql';
@@ -28,6 +29,9 @@ export class Match implements Node {
 
   @Field(() => Side, { nullable: false })
   winnerSide!: Side;
+
+  @Field(() => Team, { nullable: true })
+  winnerTeam!: Team | null;
 
   @Field(() => Side, { nullable: false })
   teamASide!: Side;

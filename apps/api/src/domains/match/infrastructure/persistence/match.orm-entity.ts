@@ -29,6 +29,9 @@ export class MatchOrmEntity {
   @Property({ columnType: 'varchar(20)', default: 'UNKNOWN' })
   winnerSide = 'UNKNOWN';
 
+  @Property({ columnType: 'varchar(10)', nullable: true })
+  winnerTeam: string | null = null;
+
   @Property({ columnType: 'varchar(20)', default: 'UNKNOWN' })
   teamASide = 'UNKNOWN';
 

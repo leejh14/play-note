@@ -1532,6 +1532,22 @@
           "unique": false,
           "enumItems": [],
           "mappedType": "datetime"
+        },
+        "winner_team": {
+          "name": "winner_team",
+          "type": "varchar(10)",
+          "length": 10,
+          "precision": null,
+          "scale": null,
+          "nullable": true,
+          "default": "null",
+          "unsigned": false,
+          "autoincrement": false,
+          "comment": null,
+          "primary": false,
+          "unique": false,
+          "enumItems": [],
+          "mappedType": "string"
         }
       },
       "name": "match",

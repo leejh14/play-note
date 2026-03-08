@@ -1,7 +1,8 @@
 import { Field, ID, InputType } from '@nestjs/graphql';
-import { IsEnum, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { RelayMutationInput } from '@libs/relay';
 import { Side } from '@domains/match/domain/enums/side.enum';
+import { Team } from '@shared/domain/enums/team.enum';
 
 @InputType('ConfirmMatchResultInput')
 export class ConfirmMatchResultInput extends RelayMutationInput {
@@ -12,6 +13,11 @@ export class ConfirmMatchResultInput extends RelayMutationInput {
   @Field(() => Side, { nullable: false })
   @IsEnum(Side)
   winnerSide!: Side;
+
+  @Field(() => Team, { nullable: true })
+  @IsOptional()
+  @IsEnum(Team)
+  winnerTeam?: Team | null;
 
   @Field(() => Side, { nullable: false })
   @IsEnum(Side)
