@@ -1,0 +1,36 @@
+{
+  "input": {
+    "jobId": "fuzzy-red-victory",
+    "match": {
+      "teamA": ["friend-a1", "friend-a2", "friend-a3", "friend-a4", "friend-a5"],
+      "teamB": ["friend-b1", "friend-b2", "friend-b3", "friend-b4", "friend-b5"]
+    },
+    "friendDictionary": [
+      { "friendId": "friend-a1", "primary": ["kanavi#kr1"], "secondary": ["kanavi"] },
+      { "friendId": "friend-a2", "primary": ["viper#kr1"], "secondary": ["viper"] },
+      { "friendId": "friend-a3", "primary": ["lehends#kr1"], "secondary": ["lehends"] },
+      { "friendId": "friend-b1", "primary": ["junho#kr1"], "secondary": ["junho"] }
+    ],
+    "ocr": {
+      "winnerBannerSide": "red",
+      "winnerTextCandidates": ["승리"],
+      "blueTextCandidates": ["Junho#KR1"],
+      "redTextCandidates": ["Kanavi#KRl", "Viperr#KR1", "Lehends # KR1"]
+    },
+    "options": {
+      "topK": 3,
+      "minScoreFull": 80,
+      "minScoreNameOnly": 92
+    }
+  },
+  "expected": {
+    "winnerSide": "red",
+    "teamASide": "red",
+    "status": "done",
+    "teamASideEvidence": {
+      "countABlue": 0,
+      "countARed": 3
+    },
+    "matchedFriendIds": ["friend-a1", "friend-a2", "friend-a3", "friend-b1"]
+  }
+}

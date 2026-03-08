@@ -11,6 +11,7 @@
     "lint": "eslint \"{src,libs,test}/**/*.ts\" --max-warnings=0",
     "format": "prettier --write \"src/**/*.ts\" \"libs/**/*.ts\" \"test/**/*.ts\"",
     "test": "jest",
+    "test:ocr": "sh -c 'if [ -x .venv/bin/python ]; then .venv/bin/python -m unittest discover -s scripts/ocr/tests -p \"test_*.py\"; else python3 -m unittest discover -s scripts/ocr/tests -p \"test_*.py\"; fi'",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json",

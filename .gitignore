@@ -37,6 +37,16 @@ logs/
 # Testing
 coverage/
 apps/api/test/.generated/
+.pytest_cache/
+__pycache__/
+*.pyc
 
 # MikroORM
 temp/
+
+# Python
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+apps/api/scripts/ocr/datasets

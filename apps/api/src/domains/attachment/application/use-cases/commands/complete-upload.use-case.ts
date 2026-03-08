@@ -62,6 +62,8 @@ export class CompleteUploadUseCase {
       await this.graphileWorkerService.addJob('lol_endscreen_extract', {
         attachmentId: attachment.id,
         matchId: input.matchId,
+      }, {
+        maxAttempts: 3,
       });
     }
 

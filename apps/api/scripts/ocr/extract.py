@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""
-LOL 엔드스크린 OCR 추출 스크립트 (stub)
-TODO: 08-worker-ocr에서 실제 OCR 구현
-"""
+"""PlayNote LoL end-screen OCR CLI."""
 import json
 import sys
+from pathlib import Path
+
+CURRENT_DIR = Path(__file__).resolve().parent
+PACKAGE_ROOT = CURRENT_DIR.parent.parent
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
+
+from scripts.ocr.pipeline import load_request, run_extraction
 
 
 def main():
@@ -19,18 +24,21 @@ def main():
         sys.exit(1)
 
     try:
-        _ = json.loads(input_str)
-    except json.JSONDecodeError:
-        print(json.dumps({"error": "Invalid JSON input"}))
+        request = load_request(input_str)
+    except json.JSONDecodeError as exc:
+        print(json.dumps({"error": f"Invalid JSON input: {exc.msg}"}))
+        sys.exit(1)
+    except OSError as exc:
+        print(json.dumps({"error": f"Failed to read input: {exc}"}))
         sys.exit(1)
 
-    output = {
-        "winnerSide": "unknown",
-        "teamASide": "unknown",
-        "confidence": {},
-        "result": {},
-    }
-    print(json.dumps(output))
+    try:
+        output = run_extraction(request)
+    except Exception as exc:  # pragma: no cover - CLI guard.
+        print(json.dumps({"error": str(exc)}))
+        sys.exit(1)
+
+    print(json.dumps(output, ensure_ascii=False))
 
 
 if __name__ == "__main__":

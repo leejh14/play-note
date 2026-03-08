@@ -18,4 +18,9 @@ export const envValidationSchema = Joi.object({
   AWS_ACCESS_KEY_ID: Joi.string().optional(),
   AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
   S3_BUCKET: Joi.string().default('playnote-attachments'),
+  GRAPHILE_WORKER_CONCURRENCY: Joi.number().integer().min(1).default(1),
+  OCR_TIMEOUT_MS: Joi.number().integer().min(1).default(60000),
+  OCR_TOP_K: Joi.number().integer().min(1).default(3),
+  OCR_MIN_SCORE_FULL: Joi.number().min(0).max(100).default(90),
+  OCR_MIN_SCORE_NAME_ONLY: Joi.number().min(0).max(100).default(92),
 });

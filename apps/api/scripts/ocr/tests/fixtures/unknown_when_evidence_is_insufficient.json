@@ -1,0 +1,35 @@
+{
+  "input": {
+    "jobId": "unknown-side",
+    "match": {
+      "teamA": ["friend-a1", "friend-a2", "friend-a3", "friend-a4", "friend-a5"],
+      "teamB": ["friend-b1", "friend-b2", "friend-b3", "friend-b4", "friend-b5"]
+    },
+    "friendDictionary": [
+      { "friendId": "friend-a1", "primary": ["junho#kr1"], "secondary": ["junho"] },
+      { "friendId": "friend-a2", "primary": ["doran#kr1"], "secondary": ["doran"] },
+      { "friendId": "friend-b1", "primary": ["kanavi#kr1"], "secondary": ["kanavi"] },
+      { "friendId": "friend-b2", "primary": ["viper#kr1"], "secondary": ["viper"] }
+    ],
+    "ocr": {
+      "winnerTextCandidates": ["DEFEAT"],
+      "blueTextCandidates": ["Junho#KR1", "Kanavi#KR1"],
+      "redTextCandidates": ["Doran#KR1", "Viper#KR1"]
+    },
+    "options": {
+      "topK": 3,
+      "minScoreFull": 90,
+      "minScoreNameOnly": 92
+    }
+  },
+  "expected": {
+    "winnerSide": "unknown",
+    "teamASide": "unknown",
+    "status": "done",
+    "teamASideEvidence": {
+      "countABlue": 1,
+      "countARed": 1
+    },
+    "matchedFriendIds": ["friend-a1", "friend-a2", "friend-b1", "friend-b2"]
+  }
+}

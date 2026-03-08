@@ -38,7 +38,7 @@ export class GraphileWorkerService implements OnModuleInit, OnModuleDestroy {
       ...options,
       taskDirectory: taskDir,
       ...(hasCrontab && { crontabFile: crontabPath }),
-      concurrency: this.config.get<number>("WORKER_CONCURRENCY") ?? 1,
+      concurrency: this.config.get<number>('GRAPHILE_WORKER_CONCURRENCY') ?? 1,
       noHandleSignals: true,
     });
 
