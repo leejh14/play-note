@@ -1,11 +1,17 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
-import { run, Runner, makeWorkerUtils, WorkerUtils } from 'graphile-worker';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { run, Runner, makeWorkerUtils, WorkerUtils } from "graphile-worker";
 
 @Injectable()
 export class GraphileWorkerService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(GraphileWorkerService.name);
   private runner: Runner | null = null;
   private utils: WorkerUtils | null = null;
   private utilsPromise: Promise<WorkerUtils> | null = null;
@@ -19,20 +25,24 @@ export class GraphileWorkerService implements OnModuleInit, OnModuleDestroy {
   ): Promise<void> {
     const utils = await this.getUtils();
     await utils.addJob(taskName, payload ?? {}, spec);
+    this.logger.log(`Job enqueued: ${taskName}`);
   }
 
   async onModuleInit(): Promise<void> {
     const options = this.getOptions();
-    const taskDir = path.join(__dirname, 'tasks');
-    const crontabPath = path.join(__dirname, 'crontab');
+    const taskDir = path.join(__dirname, "tasks");
+    const crontabPath = path.join(__dirname, "crontab");
     const hasCrontab = existsSync(crontabPath);
 
     this.runner = await run({
       ...options,
       taskDirectory: taskDir,
       ...(hasCrontab && { crontabFile: crontabPath }),
-      concurrency: this.config.get<number>('WORKER_CONCURRENCY') ?? 1,
+      concurrency: this.config.get<number>("WORKER_CONCURRENCY") ?? 1,
+      noHandleSignals: true,
     });
+
+    this.logger.log("Graphile Worker started");
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -45,6 +55,8 @@ export class GraphileWorkerService implements OnModuleInit, OnModuleDestroy {
       this.utils = null;
       this.utilsPromise = null;
     }
+
+    this.logger.log("Graphile Worker stopped");
   }
 
   private async getUtils(): Promise<WorkerUtils> {

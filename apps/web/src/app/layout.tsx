@@ -27,15 +27,9 @@ export default function RootLayout({
           crossOrigin="anonymous"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL@20..48,100..700,0..1"
-          rel="stylesheet"
-        />
       </head>
       <body className="h-full font-pretendard bg-[var(--bg-page)] text-[var(--text-primary)] antialiased">
-        <div className="mx-auto h-full max-w-[430px]">
-          {children}
-        </div>
+        <div className="mx-auto h-full max-w-[430px]">{children}</div>
       </body>
     </html>
   );

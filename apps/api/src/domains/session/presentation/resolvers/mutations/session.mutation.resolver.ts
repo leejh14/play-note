@@ -32,8 +32,6 @@ import { SetTeamMemberInputDto } from '@domains/session/application/dto/inputs/s
 import { BulkSetTeamsInputDto } from '@domains/session/application/dto/inputs/bulk-set-teams.input.dto';
 import { CreateCommentInputDto } from '@domains/session/application/dto/inputs/create-comment.input.dto';
 import { CommentIdInputDto } from '@domains/session/application/dto/inputs/comment-id.input.dto';
-import { Session } from '@domains/session/presentation/graphql/types/session.gql';
-import { Comment } from '@domains/session/presentation/graphql/types/comment.gql';
 import {
   CreateSessionPayload,
   ConfirmSessionPayload,

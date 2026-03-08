@@ -18,6 +18,8 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
+  app.enableShutdownHooks();
+
   const port = process.env.API_PORT ?? 4000;
   await app.listen(port);
 }
