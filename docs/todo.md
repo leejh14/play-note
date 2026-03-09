@@ -3,22 +3,23 @@
 > 전제: 프론트 UI와 백엔드 API 연동은 완료된 상태로 본다.
 >
 > 현재 확인된 상태:
+>
 > - [x] `yarn build` 통과
 > - [x] API 단위 테스트 통과 (`yarn workspace @playnote/api test`)
 > - [x] API E2E 통과 (`yarn workspace @playnote/api test:e2e`)
-> - [ ] `yarn lint` 실패 (`ESLint v9`용 `eslint.config.*` 부재)
-> - [ ] Worker/OCR 태스크 실제 구현 미완료
+> - [x] `yarn lint` 실패 (`ESLint v9`용 `eslint.config.*` 부재)
+> - [x] Worker/OCR 태스크 실제 구현 미완료
 > - [ ] 배포 산출물 미완료 (`docker-compose.yml`은 현재 postgres만 구성)
 
 ---
 
 ## P0. 출시 전 반드시 끝낼 것
 
-- [ ] **린트 체계 복구**
+- [x] **린트 체계 복구**
   - `ESLint v9` 기준 flat config 추가 (`eslint.config.js|mjs|cjs`)
   - `yarn lint`가 `api`와 `web` 모두 통과하도록 정리
 
-- [ ] **Worker/OCR 실제 구현**
+- [x] **Worker/OCR 실제 구현**
   - `apps/api/src/shared/infrastructure/worker/tasks/lol_endscreen_extract.ts`
   - `apps/api/src/shared/infrastructure/worker/tasks/cleanup_s3_objects.ts`
   - `apps/api/src/shared/infrastructure/worker/tasks/auto_done_sessions.ts`

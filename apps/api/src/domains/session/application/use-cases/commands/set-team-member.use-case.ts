@@ -24,10 +24,14 @@ export class SetTeamMemberUseCase {
       });
     }
     session.checkStructureChangeAllowed();
-    session.setTeamMember(input.friendId, {
-      team: input.team,
-      lane: input.lane,
-    });
+    if (input.team === null) {
+      session.removeTeamMember(input.friendId);
+    } else {
+      session.setTeamMember(input.friendId, {
+        team: input.team,
+        lane: input.lane,
+      });
+    }
     await this.sessionRepository.save(session);
     return { id: session.id };
   }

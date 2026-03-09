@@ -638,7 +638,7 @@ input SetTeamMemberInput {
   friendId: ID!
   lane: Lane
   sessionId: ID!
-  team: Team!
+  team: Team
 }
 
 type SetTeamMemberPayload {

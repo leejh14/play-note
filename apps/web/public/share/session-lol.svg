@@ -1,0 +1,20 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="1200" height="630" rx="40" fill="#0B1220"/>
+<rect x="28" y="28" width="1144" height="574" rx="28" fill="url(#paint0_linear_429_11)" fill-opacity="0.96"/>
+<circle cx="1005" cy="158" r="150" fill="#1D4ED8" fill-opacity="0.22"/>
+<circle cx="892" cy="504" r="172" fill="#38BDF8" fill-opacity="0.14"/>
+<path d="M124 148H264V188H124V148Z" fill="#E0F2FE" fill-opacity="0.9"/>
+<path d="M124 224H669V344H124V224Z" fill="#F8FAFC" fill-opacity="0.96"/>
+<path d="M124 382H506V430H124V382Z" fill="#BFDBFE" fill-opacity="0.96"/>
+<text x="124" y="178" fill="#E0F2FE" font-family="Pretendard, Arial, sans-serif" font-size="34" font-weight="700">PLAYNOTE</text>
+<text x="124" y="298" fill="#F8FAFC" font-family="Pretendard, Arial, sans-serif" font-size="88" font-weight="800">LoL Session</text>
+<text x="124" y="426" fill="#DBEAFE" font-family="Pretendard, Arial, sans-serif" font-size="42" font-weight="600">Share the setup link and lock in the lineup.</text>
+<rect x="839" y="186" width="218" height="218" rx="30" fill="#020617" fill-opacity="0.36" stroke="#93C5FD" stroke-opacity="0.6" stroke-width="2"/>
+<path d="M911 343L930 286L959 315L996 237L931 262L960 290L911 343Z" fill="#F8FAFC"/>
+<defs>
+<linearGradient id="paint0_linear_429_11" x1="134" y1="92" x2="1085" y2="576" gradientUnits="userSpaceOnUse">
+<stop stop-color="#0F172A"/>
+<stop offset="1" stop-color="#1D4ED8"/>
+</linearGradient>
+</defs>
+</svg>

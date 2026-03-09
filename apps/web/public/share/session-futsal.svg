@@ -1,0 +1,24 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="1200" height="630" rx="40" fill="#0F172A"/>
+<rect x="28" y="28" width="1144" height="574" rx="28" fill="url(#paint0_linear_429_22)"/>
+<circle cx="1016" cy="144" r="148" fill="#16A34A" fill-opacity="0.2"/>
+<circle cx="882" cy="494" r="180" fill="#86EFAC" fill-opacity="0.16"/>
+<path d="M126 148H264V188H126V148Z" fill="#DCFCE7" fill-opacity="0.92"/>
+<path d="M126 224H773V344H126V224Z" fill="#F0FDF4" fill-opacity="0.96"/>
+<path d="M126 382H560V430H126V382Z" fill="#BBF7D0" fill-opacity="0.96"/>
+<text x="126" y="178" fill="#DCFCE7" font-family="Pretendard, Arial, sans-serif" font-size="34" font-weight="700">PLAYNOTE</text>
+<text x="126" y="298" fill="#F0FDF4" font-family="Pretendard, Arial, sans-serif" font-size="88" font-weight="800">Futsal Session</text>
+<text x="126" y="426" fill="#DCFCE7" font-family="Pretendard, Arial, sans-serif" font-size="42" font-weight="600">Copy the link, fill attendance, and split the teams.</text>
+<circle cx="945" cy="295" r="110" fill="#052E16" fill-opacity="0.36" stroke="#86EFAC" stroke-width="2"/>
+<circle cx="945" cy="295" r="32" fill="#F0FDF4"/>
+<path d="M945 207L974 227L963 260H927L916 227L945 207Z" fill="#F0FDF4"/>
+<path d="M1050 273L1040 306L1008 318L984 294L995 260L1028 249L1050 273Z" fill="#F0FDF4"/>
+<path d="M906 294L882 318L850 306L840 273L862 249L895 260L906 294Z" fill="#F0FDF4"/>
+<path d="M974 363L945 383L916 363L927 330H963L974 363Z" fill="#F0FDF4"/>
+<defs>
+<linearGradient id="paint0_linear_429_22" x1="102" y1="82" x2="1092" y2="578" gradientUnits="userSpaceOnUse">
+<stop stop-color="#14532D"/>
+<stop offset="1" stop-color="#16A34A"/>
+</linearGradient>
+</defs>
+</svg>

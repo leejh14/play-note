@@ -2,11 +2,24 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, Share2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  Link2,
+  MessageCircleMore,
+  Share2,
+} from "lucide-react";
+import {
+  isKakaoShareAvailable,
+  shareWithKakao,
+  type KakaoShareFeedPayload,
+} from "@/lib/kakao";
 import {
   confirmSessionSetup,
   fetchSessionById,
   getSessionToken,
+  saveSessionToken,
   type AttendanceStatus,
   type Lane,
   type Session,
@@ -30,6 +43,10 @@ interface DropdownOption {
 }
 
 const lanes: Lane[] = ["TOP", "JG", "MID", "ADC", "SUP"];
+const shareThumbnailPathByContentType: Record<Session["contentType"], string> = {
+  lol: "/share/session-lol.svg",
+  futsal: "/share/session-futsal.svg",
+};
 
 export default function SessionSetupPage() {
   const params = useParams<{ sessionId: string }>();
@@ -37,15 +54,25 @@ export default function SessionSetupPage() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
+  const [isKakaoReady, setIsKakaoReady] = useState(false);
+  const shareMenuRef = useRef<HTMLDivElement | null>(null);
+  const shareCopiedTimeoutRef = useRef<number | null>(null);
   const sessionId = params.sessionId;
 
   useEffect(() => {
     let cancelled = false;
 
     const loadSession = async () => {
+      const token = new URLSearchParams(window.location.search).get("t");
+      if (token) {
+        saveSessionToken(sessionId, token);
+      }
+
       const nextSession = await fetchSessionById(sessionId);
       if (!cancelled) {
         setSession(nextSession);
+        setIsKakaoReady(isKakaoShareAvailable());
       }
     };
 
@@ -55,6 +82,34 @@ export default function SessionSetupPage() {
       cancelled = true;
     };
   }, [sessionId]);
+
+  useEffect(() => {
+    return () => {
+      if (shareCopiedTimeoutRef.current) {
+        window.clearTimeout(shareCopiedTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isShareMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!shareMenuRef.current?.contains(event.target as Node)) {
+        setIsShareMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [isShareMenuOpen]);
 
   const members = useMemo<SetupMember[]>(() => {
     if (!session) {
@@ -87,36 +142,96 @@ export default function SessionSetupPage() {
     );
   }
 
-  const yesCount = members.filter((m) => m.attendance === "yes").length;
-  const teamA = members.filter((m) => m.team === "A");
-  const teamB = members.filter((m) => m.team === "B");
+  const yesCount = members.filter((member) => member.attendance === "yes").length;
+  const teamA = members.filter((member) => member.team === "A");
+  const teamB = members.filter((member) => member.team === "B");
   const availableMembers = members.filter(
-    (member) =>
-      member.attendance === "yes" &&
-      !member.team,
+    (member) => member.attendance === "yes" && !member.team,
   );
+  const laneMembers = members.filter((member) => member.attendance === "yes");
   const teamOptions: DropdownOption[] = availableMembers.map((member) => ({
     value: member.id,
     label: member.name,
   }));
 
-  const handleShare = async () => {
-    const token = getSessionToken(session.id);
-    const baseUrl = window.location.origin;
-    const shareUrl = new URL(`/s/${session.id}/setup`, baseUrl);
+  const markShareCopied = () => {
+    setShareCopied(true);
+    if (shareCopiedTimeoutRef.current) {
+      window.clearTimeout(shareCopiedTimeoutRef.current);
+    }
+    shareCopiedTimeoutRef.current = window.setTimeout(() => {
+      setShareCopied(false);
+    }, 2000);
+  };
 
-    if (token) {
-      shareUrl.searchParams.set("t", token);
+  const buildShareUrl = () => {
+    const token = getSessionToken(session.id);
+    if (!token) {
+      return null;
     }
 
+    const shareUrl = new URL(`/s/${session.id}/setup`, window.location.origin);
+    shareUrl.searchParams.set("t", token);
+    return shareUrl.toString();
+  };
+
+  const buildKakaoSharePayload = (shareUrl: string): KakaoShareFeedPayload => {
+    const imageUrl = new URL(
+      shareThumbnailPathByContentType[session.contentType],
+      window.location.origin,
+    ).toString();
+
+    return {
+      objectType: "feed",
+      content: {
+        title: session.title,
+        description: `${session.date} ${session.time} · 참가 ${yesCount}/${session.memberCount}`,
+        imageUrl,
+        link: {
+          mobileWebUrl: shareUrl,
+          webUrl: shareUrl,
+        },
+      },
+      buttons: [
+        {
+          title: "참가하기",
+          link: {
+            mobileWebUrl: shareUrl,
+            webUrl: shareUrl,
+          },
+        },
+      ],
+    };
+  };
+
+  const handleCopyShareLink = async () => {
+    const shareUrl = buildShareUrl();
+    if (!shareUrl) {
+      return;
+    }
+
+    setIsShareMenuOpen(false);
+
     try {
-      await navigator.clipboard.writeText(shareUrl.toString());
-      setShareCopied(true);
-      window.setTimeout(() => {
-        setShareCopied(false);
-      }, 2000);
+      await navigator.clipboard.writeText(shareUrl);
+      markShareCopied();
     } catch {
-      window.prompt("Copy this setup link", shareUrl.toString());
+      window.prompt("Copy this setup link", shareUrl);
+    }
+  };
+
+  const handleKakaoShare = async () => {
+    const shareUrl = buildShareUrl();
+    if (!shareUrl) {
+      return;
+    }
+
+    setIsShareMenuOpen(false);
+
+    try {
+      await shareWithKakao(buildKakaoSharePayload(shareUrl));
+    } catch {
+      await handleCopyShareLink();
     }
   };
 
@@ -147,7 +262,6 @@ export default function SessionSetupPage() {
     }
 
     const candidate = availableMembers.find((member) => member.id === friendId);
-
     if (!candidate) {
       return;
     }
@@ -166,10 +280,25 @@ export default function SessionSetupPage() {
     }
   };
 
-  const handleLaneChange = async (
-    member: SetupMember,
-    lane: Lane,
-  ) => {
+  const handleRemoveFromTeam = async (member: SetupMember) => {
+    if (isSaving || !member.team) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updatedSession = await updateTeamMember({
+        sessionId: session.id,
+        friendId: member.id,
+        team: null,
+      });
+      setSession(updatedSession);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLaneChange = async (member: SetupMember, lane: Lane) => {
     if (
       isSaving ||
       session.contentType !== "lol" ||
@@ -214,29 +343,58 @@ export default function SessionSetupPage() {
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-[var(--white)]">
-      {/* Header */}
       <div className="flex w-full items-center justify-between px-[24px] py-[16px]">
-        <button onClick={() => router.back()}>
+        <button type="button" onClick={() => router.back()}>
           <ArrowLeft size={24} className="text-[var(--black)]" />
         </button>
         <h1 className="text-[18px] font-bold text-[var(--black)]">
           Session Setup
         </h1>
-        <button
-          type="button"
-          onClick={() => void handleShare()}
-          className="flex w-[24px] items-center justify-center"
-          aria-label={shareCopied ? "Setup link copied" : "Share setup link"}
-        >
-          {shareCopied ? (
-            <Check size={20} className="text-[var(--primary)]" />
-          ) : (
-            <Share2 size={20} className="text-[var(--gray-700)]" />
-          )}
-        </button>
+        <div ref={shareMenuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setIsKakaoReady(isKakaoShareAvailable());
+              setIsShareMenuOpen((current) => !current);
+            }}
+            className="flex w-[24px] items-center justify-center"
+            aria-label={shareCopied ? "Setup link copied" : "Share setup link"}
+            aria-expanded={isShareMenuOpen}
+          >
+            {shareCopied ? (
+              <Check size={20} className="text-[var(--primary)]" />
+            ) : (
+              <Share2 size={20} className="text-[var(--gray-700)]" />
+            )}
+          </button>
+
+          {isShareMenuOpen ? (
+            <div className="absolute top-[calc(100%+8px)] right-0 z-20 flex w-[176px] flex-col rounded-[var(--radius-md)] border border-[var(--gray-200)] bg-[var(--white)] p-[6px] shadow-lg">
+              <button
+                type="button"
+                onClick={() => void handleCopyShareLink()}
+                className="flex items-center gap-[10px] rounded-[var(--radius-sm)] px-[12px] py-[10px] text-left text-[13px] font-medium text-[var(--black)] hover:bg-[var(--gray-100)]"
+              >
+                <Link2 size={16} className="text-[var(--gray-500)]" />
+                <span>링크 복사</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleKakaoShare()}
+                disabled={!isKakaoReady}
+                className="flex items-center gap-[10px] rounded-[var(--radius-sm)] px-[12px] py-[10px] text-left text-[13px] font-medium text-[var(--black)] hover:bg-[var(--gray-100)] disabled:cursor-not-allowed disabled:text-[var(--gray-400)] disabled:hover:bg-transparent"
+              >
+                <MessageCircleMore
+                  size={16}
+                  className={isKakaoReady ? "text-[#FEE500]" : "text-[var(--gray-300)]"}
+                />
+                <span>카카오톡 공유</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      {/* Info Bar */}
       <div className="flex w-full items-center gap-[8px] bg-[var(--primary-light)] px-[24px] py-[12px]">
         <span className="rounded-[var(--radius-full)] bg-[var(--primary)] px-[10px] py-[3px] text-[11px] font-semibold text-[var(--white)]">
           {session.contentType === "lol" ? "LoL" : "Futsal"}
@@ -249,7 +407,6 @@ export default function SessionSetupPage() {
         </span>
       </div>
 
-      {/* Step 1: Attendance */}
       <div className="flex flex-col gap-[12px] px-[24px] py-[20px]">
         <div className="flex items-center gap-[8px]">
           <div className="flex h-[24px] w-[24px] items-center justify-center rounded-full bg-[var(--primary)]">
@@ -291,6 +448,7 @@ export default function SessionSetupPage() {
                   return (
                     <button
                       key={status}
+                      type="button"
                       onClick={() => void handleAttendanceChange(member, status)}
                       disabled={isSaving}
                       className={`flex h-full items-center justify-center px-[10px] text-[11px] font-semibold ${
@@ -300,7 +458,7 @@ export default function SessionSetupPage() {
                             ? "rounded-[5px] bg-[var(--gray-500)] text-[var(--white)]"
                             : active && status === "no"
                               ? "rounded-[5px] bg-[var(--red)] text-[var(--white)]"
-                            : "text-[var(--gray-500)]"
+                              : "text-[var(--gray-500)]"
                       }`}
                     >
                       {labels[status]}
@@ -315,7 +473,6 @@ export default function SessionSetupPage() {
 
       <div className="h-[1px] w-full bg-[var(--gray-100)]" />
 
-      {/* Step 2: Team Assignment */}
       <div className="flex flex-col gap-[12px] px-[24px] py-[20px]">
         <div className="flex items-center gap-[8px]">
           <div className="flex h-[24px] w-[24px] items-center justify-center rounded-full bg-[var(--primary)]">
@@ -327,23 +484,25 @@ export default function SessionSetupPage() {
         </div>
 
         <div className="flex gap-[12px]">
-          {/* Team A */}
           <div className="flex flex-1 flex-col gap-[6px] rounded-[var(--radius-md)] bg-[var(--primary-light)] p-[14px]">
             <span className="text-[14px] font-bold text-[var(--primary)]">
               Team A
             </span>
-            {teamA.map((m) => (
-              <div
-                key={m.id}
-                className="flex h-[36px] items-center gap-[8px] rounded-[var(--radius-sm)] bg-[var(--white)] px-[8px]"
+            {teamA.map((member) => (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => void handleRemoveFromTeam(member)}
+                disabled={isSaving}
+                className="flex h-[36px] items-center gap-[8px] rounded-[var(--radius-sm)] bg-[var(--white)] px-[8px] text-left disabled:opacity-60"
               >
                 <div className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--primary-light)] text-[9px] font-semibold text-[var(--primary)]">
-                  {m.name[0]}
+                  {member.name[0]}
                 </div>
                 <span className="text-[13px] font-medium text-[var(--black)]">
-                  {m.name}
+                  {member.name}
                 </span>
-              </div>
+              </button>
             ))}
             <DropdownMenu
               value=""
@@ -356,23 +515,25 @@ export default function SessionSetupPage() {
             />
           </div>
 
-          {/* Team B */}
           <div className="flex flex-1 flex-col gap-[6px] rounded-[var(--radius-md)] bg-[var(--red-light)] p-[14px]">
             <span className="text-[14px] font-bold text-[var(--red)]">
               Team B
             </span>
-            {teamB.map((m) => (
-              <div
-                key={m.id}
-                className="flex h-[36px] items-center gap-[8px] rounded-[var(--radius-sm)] bg-[var(--white)] px-[8px]"
+            {teamB.map((member) => (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => void handleRemoveFromTeam(member)}
+                disabled={isSaving}
+                className="flex h-[36px] items-center gap-[8px] rounded-[var(--radius-sm)] bg-[var(--white)] px-[8px] text-left disabled:opacity-60"
               >
                 <div className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--red-light)] text-[9px] font-semibold text-[var(--red)]">
-                  {m.name[0]}
+                  {member.name[0]}
                 </div>
                 <span className="text-[13px] font-medium text-[var(--black)]">
-                  {m.name}
+                  {member.name}
                 </span>
-              </div>
+              </button>
             ))}
             <DropdownMenu
               value=""
@@ -389,7 +550,6 @@ export default function SessionSetupPage() {
 
       <div className="h-[1px] w-full bg-[var(--gray-100)]" />
 
-      {/* Step 3: Lane Assignment */}
       <div className="flex flex-col gap-[12px] px-[24px] py-[20px]">
         <div className="flex items-center gap-[8px]">
           <div className="flex h-[24px] w-[24px] items-center justify-center rounded-full bg-[var(--primary)]">
@@ -404,49 +564,49 @@ export default function SessionSetupPage() {
         </div>
 
         <div className="flex flex-col gap-[6px]">
-          {members.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center justify-between rounded-[10px] bg-[var(--gray-100)] px-[14px] py-[10px]"
-            >
-              <div className="flex items-center gap-[8px]">
-                <span
-                  className={`rounded-[4px] px-[6px] py-[2px] text-[10px] font-bold ${
-                    m.team === "A"
-                      ? "bg-[var(--primary-light)] text-[var(--primary)]"
-                      : "bg-[var(--red-light)] text-[var(--red)]"
-                  }`}
-                >
-                  {m.team}
-                </span>
-                <span className="text-[14px] font-medium text-[var(--black)]">
-                  {m.name}
-                </span>
+          {laneMembers.map((member) => {
+            const teamBadge = getTeamBadge(member.team);
+
+            return (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-[10px] bg-[var(--gray-100)] px-[14px] py-[10px]"
+              >
+                <div className="flex items-center gap-[8px]">
+                  <span
+                    className={`rounded-[4px] px-[6px] py-[2px] text-[10px] font-bold ${teamBadge.className}`}
+                  >
+                    {teamBadge.label}
+                  </span>
+                  <span className="text-[14px] font-medium text-[var(--black)]">
+                    {member.name}
+                  </span>
+                </div>
+                <DropdownMenu
+                  value={member.lane ?? "UNKNOWN"}
+                  placeholder="—"
+                  options={[
+                    { value: "UNKNOWN", label: "—" },
+                    ...lanes.map((lane) => ({
+                      value: lane,
+                      label: lane,
+                    })),
+                  ]}
+                  onChange={(lane) => void handleLaneChange(member, lane as Lane)}
+                  disabled={isSaving || session.contentType !== "lol" || !member.team}
+                  buttonClassName="h-[32px] w-[90px] rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] px-[10px] text-[13px] font-semibold text-[var(--black)]"
+                  iconClassName="text-[var(--gray-500)]"
+                  menuClassName="w-[90px]"
+                />
               </div>
-              <DropdownMenu
-                value={m.lane ?? "UNKNOWN"}
-                placeholder="—"
-                options={[
-                  { value: "UNKNOWN", label: "—" },
-                  ...lanes.map((lane) => ({
-                    value: lane,
-                    label: lane,
-                  })),
-                ]}
-                onChange={(lane) => void handleLaneChange(m, lane as Lane)}
-                disabled={isSaving || session.contentType !== "lol" || !m.team}
-                buttonClassName="h-[32px] w-[90px] rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] px-[10px] text-[13px] font-semibold text-[var(--black)]"
-                iconClassName="text-[var(--gray-500)]"
-                menuClassName="w-[90px]"
-              />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* Button Area */}
       <div className="px-[24px] pt-[24px] pb-[32px]">
         <button
+          type="button"
           onClick={() => void handleConfirm()}
           disabled={isSaving}
           className="flex h-[52px] w-full items-center justify-center gap-[8px] rounded-[var(--radius-md)] bg-[var(--primary)] text-[16px] font-bold text-[var(--white)]"
@@ -466,6 +626,27 @@ function buildInitials(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function getTeamBadge(team?: Team): { label: string; className: string } {
+  if (team === "A") {
+    return {
+      label: "A",
+      className: "bg-[var(--primary-light)] text-[var(--primary)]",
+    };
+  }
+
+  if (team === "B") {
+    return {
+      label: "B",
+      className: "bg-[var(--red-light)] text-[var(--red)]",
+    };
+  }
+
+  return {
+    label: "Unassigned",
+    className: "bg-[var(--gray-300)] text-[var(--gray-700)]",
+  };
 }
 
 function DropdownMenu(props: {
@@ -528,7 +709,7 @@ function DropdownMenu(props: {
         />
       </button>
 
-      {open && props.options.length > 0 && !props.disabled && (
+      {open && props.options.length > 0 && !props.disabled ? (
         <div className="absolute top-[calc(100%+6px)] left-0 z-20 max-h-[220px] w-full overflow-auto rounded-[var(--radius-sm)] border border-[var(--gray-300)] bg-[var(--white)] py-[4px] shadow-lg">
           {props.options.map((option) => (
             <button
@@ -544,7 +725,7 @@ function DropdownMenu(props: {
             </button>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

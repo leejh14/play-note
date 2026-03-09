@@ -4,18 +4,18 @@ import { Lane } from '@shared/domain/enums/lane.enum';
 export class SetTeamMemberInputDto {
   readonly sessionId: string;
   readonly friendId: string;
-  readonly team: Team;
+  readonly team: Team | null;
   readonly lane?: Lane;
 
   constructor(props: {
     sessionId: string;
     friendId: string;
-    team: Team;
+    team?: Team | null;
     lane?: Lane;
   }) {
     this.sessionId = props.sessionId;
     this.friendId = props.friendId;
-    this.team = props.team;
+    this.team = props.team ?? null;
     this.lane = props.lane;
   }
 }

@@ -14,9 +14,10 @@ export class SetTeamMemberInput extends RelayMutationInput {
   @IsString()
   friendId!: string;
 
-  @Field(() => Team, { nullable: false })
+  @Field(() => Team, { nullable: true })
+  @IsOptional()
   @IsEnum(Team)
-  team!: Team;
+  team?: Team | null;
 
   @Field(() => Lane, { nullable: true })
   @IsOptional()

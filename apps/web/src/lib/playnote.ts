@@ -973,7 +973,7 @@ export async function updateAttendance(input: {
 export async function updateTeamMember(input: {
   sessionId: string;
   friendId: string;
-  team: Team;
+  team: Team | null;
   lane?: Lane;
 }): Promise<Session> {
   const auth = getRequiredSessionAuth(input.sessionId);
@@ -984,7 +984,7 @@ export async function updateTeamMember(input: {
         clientMutationId: string;
         sessionId: string;
         friendId: string;
-        team: Team;
+        team: GqlTeam | null;
         lane?: GqlLane;
       };
     }

@@ -22,6 +22,7 @@ import { UpdateSessionUseCase } from "@domains/session/application/use-cases/com
 import { MarkDoneUseCase } from "@domains/session/application/use-cases/commands/mark-done.use-case";
 import { ReopenSessionUseCase } from "@domains/session/application/use-cases/commands/reopen-session.use-case";
 import { DeleteSessionUseCase } from "@domains/session/application/use-cases/commands/delete-session.use-case";
+import { AdminLockUseCase } from "@domains/session/application/use-cases/commands/admin-lock.use-case";
 import { SetAttendanceUseCase } from "@domains/session/application/use-cases/commands/set-attendance.use-case";
 import { SetTeamMemberUseCase } from "@domains/session/application/use-cases/commands/set-team-member.use-case";
 import { BulkSetTeamsUseCase } from "@domains/session/application/use-cases/commands/bulk-set-teams.use-case";
@@ -30,9 +31,15 @@ import { DeleteCommentUseCase } from "@domains/session/application/use-cases/com
 import { AdminUnlockUseCase } from "@domains/session/application/use-cases/commands/admin-unlock.use-case";
 import { GetSessionUseCase } from "@domains/session/application/use-cases/queries/get-session.use-case";
 import { GetCommentUseCase } from "@domains/session/application/use-cases/queries/get-comment.use-case";
+import { SessionDetailOutputDto } from "@domains/session/application/dto/outputs/session-detail.output.dto";
 import { SessionOutputDto } from "@domains/session/application/dto/outputs/session.output.dto";
+import { AttendanceOutputDto } from "@domains/session/application/dto/outputs/attendance.output.dto";
+import { TeamPresetMemberOutputDto } from "@domains/session/application/dto/outputs/team-preset-member.output.dto";
 import { ContentType } from "@domains/session/domain/enums/content-type.enum";
+import { AttendanceStatus } from "@domains/session/domain/enums/attendance-status.enum";
 import { SessionStatus } from "@domains/session/domain/enums/session-status.enum";
+import { Team } from "@shared/domain/enums/team.enum";
+import { Lane } from "@shared/domain/enums/lane.enum";
 
 import "@shared/presentation/graphql/enums/team.enum.gql";
 import "@shared/presentation/graphql/enums/lane.enum.gql";
@@ -74,6 +81,7 @@ describe("CreateSession public mutation (e2e)", () => {
   const markDoneUseCase: UseCaseMock = { execute: jest.fn() };
   const reopenSessionUseCase: UseCaseMock = { execute: jest.fn() };
   const deleteSessionUseCase: UseCaseMock = { execute: jest.fn() };
+  const adminLockUseCase: UseCaseMock = { execute: jest.fn() };
   const setAttendanceUseCase: UseCaseMock = { execute: jest.fn() };
   const setTeamMemberUseCase: UseCaseMock = { execute: jest.fn() };
   const bulkSetTeamsUseCase: UseCaseMock = { execute: jest.fn() };
@@ -109,6 +117,7 @@ describe("CreateSession public mutation (e2e)", () => {
         { provide: MarkDoneUseCase, useValue: markDoneUseCase },
         { provide: ReopenSessionUseCase, useValue: reopenSessionUseCase },
         { provide: DeleteSessionUseCase, useValue: deleteSessionUseCase },
+        { provide: AdminLockUseCase, useValue: adminLockUseCase },
         { provide: SetAttendanceUseCase, useValue: setAttendanceUseCase },
         { provide: SetTeamMemberUseCase, useValue: setTeamMemberUseCase },
         { provide: BulkSetTeamsUseCase, useValue: bulkSetTeamsUseCase },
@@ -144,6 +153,11 @@ describe("CreateSession public mutation (e2e)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    sessionTokenService.validateToken.mockResolvedValue({
+      sessionId: "session-public-1",
+      role: "editor",
+    });
+
     createSessionUseCase.execute.mockResolvedValue({
       id: "session-public-1",
       editorToken: "editor-token-public",
@@ -156,6 +170,7 @@ describe("CreateSession public mutation (e2e)", () => {
         title: "Public Session",
         startsAt: new Date("2026-03-01T10:00:00.000Z"),
         status: SessionStatus.SCHEDULED,
+        isStructureLocked: false,
         attendingCount: 0,
         matchCount: 0,
         createdAt: new Date("2026-03-01T10:00:00.000Z"),
@@ -209,4 +224,150 @@ describe("CreateSession public mutation (e2e)", () => {
     expect(data.createSession.session.status).toBe("SCHEDULED");
     expect(sessionTokenService.validateToken).not.toHaveBeenCalled();
   });
+
+  it("passes nullable team through setTeamMember and returns the updated session", async () => {
+    setTeamMemberUseCase.execute.mockResolvedValue({ id: "session-public-1" });
+    getSessionUseCase.execute.mockResolvedValue(
+      buildSessionDetail("session-public-1", []),
+    );
+
+    const result = await graphql({
+      schema,
+      source: `
+        mutation SetTeamMember($input: SetTeamMemberInput!) {
+          setTeamMember(input: $input) {
+            session {
+              id
+              teamPresetMembers {
+                id
+              }
+            }
+          }
+        }
+      `,
+      variableValues: {
+        input: {
+          sessionId: "U2Vzc2lvbjpzZXNzaW9uLXB1YmxpYy0x",
+          friendId: "RnJpZW5kOmZyaWVuZC0x",
+          team: null,
+        },
+      },
+      contextValue: {
+        req: {
+          headers: {
+            "x-session-id": "session-public-1",
+            "x-session-token": "editor-token-public",
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(setTeamMemberUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-public-1",
+        friendId: "friend-1",
+        team: null,
+      }),
+    );
+    expect(
+      (result.data as {
+        setTeamMember: {
+          session: {
+            teamPresetMembers: Array<{ id: string }>;
+          };
+        };
+      }).setTeamMember.session.teamPresetMembers,
+    ).toHaveLength(0);
+  });
+
+  it("keeps the existing team assignment path working when team is provided", async () => {
+    setTeamMemberUseCase.execute.mockResolvedValue({ id: "session-public-1" });
+    getSessionUseCase.execute.mockResolvedValue(
+      buildSessionDetail("session-public-1", [
+        new TeamPresetMemberOutputDto({
+          id: "preset-1",
+          friendId: "friend-1",
+          team: Team.A,
+          lane: Lane.TOP,
+        }),
+      ]),
+    );
+
+    const result = await graphql({
+      schema,
+      source: `
+        mutation SetTeamMember($input: SetTeamMemberInput!) {
+          setTeamMember(input: $input) {
+            session {
+              teamPresetMembers {
+                team
+                lane
+              }
+            }
+          }
+        }
+      `,
+      variableValues: {
+        input: {
+          sessionId: "U2Vzc2lvbjpzZXNzaW9uLXB1YmxpYy0x",
+          friendId: "RnJpZW5kOmZyaWVuZC0x",
+          team: "A",
+          lane: "TOP",
+        },
+      },
+      contextValue: {
+        req: {
+          headers: {
+            "x-session-id": "session-public-1",
+            "x-session-token": "editor-token-public",
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(setTeamMemberUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-public-1",
+        friendId: "friend-1",
+        team: Team.A,
+        lane: Lane.TOP,
+      }),
+    );
+    expect(
+      (result.data as {
+        setTeamMember: {
+          session: {
+            teamPresetMembers: Array<{ team: string; lane: string }>;
+          };
+        };
+      }).setTeamMember.session.teamPresetMembers,
+    ).toEqual([{ team: "A", lane: "TOP" }]);
+  });
 });
+
+function buildSessionDetail(
+  id: string,
+  teamPresetMembers: TeamPresetMemberOutputDto[],
+): SessionDetailOutputDto {
+  return new SessionDetailOutputDto({
+    id,
+    contentType: ContentType.LOL,
+    title: "Public Session",
+    startsAt: new Date("2026-03-01T10:00:00.000Z"),
+    status: SessionStatus.SCHEDULED,
+    isStructureLocked: false,
+    editorToken: "editor-token-public",
+    adminToken: "admin-token-public",
+    attendances: [
+      new AttendanceOutputDto({
+        id: "attendance-1",
+        friendId: "friend-1",
+        status: AttendanceStatus.ATTENDING,
+      }),
+    ],
+    teamPresetMembers,
+    createdAt: new Date("2026-03-01T10:00:00.000Z"),
+  });
+}
