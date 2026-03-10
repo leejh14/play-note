@@ -45,9 +45,11 @@ function MatchDetailContent() {
   const [isSelectionDirty, setIsSelectionDirty] = useState(false);
   const [pollingMatchId, setPollingMatchId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [teamASideSelection, setTeamASideSelection] = useState<Side>("UNKNOWN");
   const [winnerSideSelection, setWinnerSideSelection] = useState<Side>("UNKNOWN");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const localPreviewUrlRef = useRef<string | null>(null);
   const sessionId = params.sessionId;
   const token = searchParams.get("t");
   const selectedMatchId = searchParams.get("matchId");
@@ -81,7 +83,20 @@ function MatchDetailContent() {
   useEffect(() => {
     setIsSelectionDirty(false);
     setUploadError(null);
+    if (localPreviewUrlRef.current) {
+      URL.revokeObjectURL(localPreviewUrlRef.current);
+      localPreviewUrlRef.current = null;
+    }
+    setLocalPreviewUrl(null);
   }, [selectedMatch?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrlRef.current) {
+        URL.revokeObjectURL(localPreviewUrlRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedMatch || isSelectionDirty) {
@@ -223,6 +238,7 @@ function MatchDetailContent() {
   const ocrStatusClass = getOcrStatusClass(match.latestExtractionStatus);
   const confirmSourceLabel = getConfirmSourceLabel(match);
   const confirmHint = getConfirmHint(match);
+  const endScreenPreviewUrl = localPreviewUrl ?? match.endScreenUrl ?? null;
 
   const handleChooseImage = () => {
     if (isUploading || !canEdit) {
@@ -243,6 +259,11 @@ function MatchDetailContent() {
       return;
     }
 
+    if (localPreviewUrlRef.current) {
+      URL.revokeObjectURL(localPreviewUrlRef.current);
+    }
+    localPreviewUrlRef.current = URL.createObjectURL(file);
+    setLocalPreviewUrl(localPreviewUrlRef.current);
     setIsUploading(true);
     setUploadError(null);
     try {
@@ -258,6 +279,12 @@ function MatchDetailContent() {
         const updatedMatch =
           updatedSession.matches.find((item) => item.id === match.id) ?? null;
         const nextStatus = updatedMatch?.latestExtractionStatus ?? "IDLE";
+
+        if (updatedMatch?.endScreenUrl && localPreviewUrlRef.current) {
+          URL.revokeObjectURL(localPreviewUrlRef.current);
+          localPreviewUrlRef.current = null;
+          setLocalPreviewUrl(null);
+        }
 
         if (nextStatus === "DONE" || nextStatus === "FAILED") {
           setPollingMatchId(null);
@@ -421,6 +448,16 @@ function MatchDetailContent() {
           disabled={!canEdit || isUploading}
           className="flex flex-col gap-[8px] rounded-[var(--radius-md)] bg-[var(--gray-100)] p-[16px] text-left disabled:opacity-50"
         >
+          {endScreenPreviewUrl ? (
+            <div className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--gray-200)] bg-[var(--gray-200)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={endScreenPreviewUrl}
+                alt="End screen preview"
+                className="h-[180px] w-full object-contain"
+              />
+            </div>
+          ) : null}
           <span className="text-[13px] text-[var(--gray-700)]">
             📎{" "}
             {isUploading

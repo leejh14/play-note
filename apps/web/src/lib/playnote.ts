@@ -36,6 +36,20 @@ const EXTRACTION_RESULT_DETAIL_FIELDS = `
   result
 `;
 
+const PROTECTED_MATCH_ATTACHMENT_FIELDS = `
+  id
+  type
+  originalFileName
+  url
+  createdAt
+`;
+
+const PUBLIC_MATCH_ATTACHMENT_FIELDS = `
+  id
+  type
+  originalFileName
+`;
+
 const MATCH_SUMMARY_FIELDS = `
   id
   matchNo
@@ -55,16 +69,14 @@ const MATCH_SUMMARY_FIELDS = `
     }
   }
   attachments {
-    id
-    type
-    originalFileName
+    ${PUBLIC_MATCH_ATTACHMENT_FIELDS}
   }
   extractionResults {
     ${EXTRACTION_RESULT_SUMMARY_FIELDS}
   }
 `;
 
-const MATCH_DETAIL_FIELDS = `
+const PROTECTED_MATCH_DETAIL_FIELDS = `
   id
   matchNo
   status
@@ -83,9 +95,33 @@ const MATCH_DETAIL_FIELDS = `
     }
   }
   attachments {
+    ${PROTECTED_MATCH_ATTACHMENT_FIELDS}
+  }
+  extractionResults {
+    ${EXTRACTION_RESULT_DETAIL_FIELDS}
+  }
+`;
+
+const PUBLIC_MATCH_DETAIL_FIELDS = `
+  id
+  matchNo
+  status
+  winnerSide
+  teamASide
+  winnerTeam
+  isConfirmed
+  teamMembers {
     id
-    type
-    originalFileName
+    team
+    lane
+    champion
+    friend {
+      id
+      displayName
+    }
+  }
+  attachments {
+    ${PUBLIC_MATCH_ATTACHMENT_FIELDS}
   }
   extractionResults {
     ${EXTRACTION_RESULT_DETAIL_FIELDS}
@@ -120,7 +156,50 @@ const SESSION_DETAIL_FIELDS = `
     }
   }
   matches {
-    ${MATCH_DETAIL_FIELDS}
+    ${PROTECTED_MATCH_DETAIL_FIELDS}
+  }
+  attachments {
+    id
+    type
+    originalFileName
+  }
+  comments {
+    id
+    body
+    displayName
+    createdAt
+  }
+`;
+
+const PUBLIC_SESSION_DETAIL_FIELDS = `
+  id
+  title
+  contentType
+  status
+  isStructureLocked
+  effectiveLocked
+  startsAt
+  attendingCount
+  matchCount
+  attendances {
+    id
+    status
+    friend {
+      id
+      displayName
+    }
+  }
+  teamPresetMembers {
+    id
+    team
+    lane
+    friend {
+      id
+      displayName
+    }
+  }
+  matches {
+    ${PUBLIC_MATCH_DETAIL_FIELDS}
   }
   attachments {
     id
@@ -189,7 +268,7 @@ const SESSION_QUERY = `
 const PUBLIC_SESSION_QUERY = `
   query PublicSessionDetail($sessionId: ID!) {
     publicSession(sessionId: $sessionId) {
-      ${SESSION_DETAIL_FIELDS}
+      ${PUBLIC_SESSION_DETAIL_FIELDS}
     }
   }
 `;
@@ -445,6 +524,8 @@ type SessionGraphData = {
       id: string;
       type: GqlAttachmentType;
       originalFileName: string | null;
+      url?: string | null;
+      createdAt?: string;
     }>;
     extractionResults: Array<{
       id: string;
@@ -668,6 +749,8 @@ export interface MatchResult {
   teamASide: Side;
   isConfirmed: boolean;
   endScreenFile?: string;
+  endScreenUrl?: string;
+  endScreenUploadedAt?: string;
   ocrDone: boolean;
   latestExtractionStatus: MatchExtractionStatus;
   latestDoneExtraction: MatchExtractionResult | null;
@@ -1479,9 +1562,9 @@ function mergeSessionMembers(
 }
 
 function mapMatch(match: SessionGraphData["matches"][number]): MatchResult {
-  const resultAttachment = match.attachments.find(
-    (attachment) => attachment.type === "LOL_RESULT_SCREEN",
-  );
+  const resultAttachment = [...match.attachments]
+    .filter((attachment) => attachment.type === "LOL_RESULT_SCREEN")
+    .sort(compareAttachmentsDesc)[0];
   const extractionResults = match.extractionResults
     .map(mapExtractionResult)
     .sort(compareExtractionResultsDesc);
@@ -1504,6 +1587,8 @@ function mapMatch(match: SessionGraphData["matches"][number]): MatchResult {
     teamASide: match.teamASide,
     isConfirmed: match.isConfirmed,
     endScreenFile: resultAttachment?.originalFileName ?? undefined,
+    endScreenUrl: resultAttachment?.url ?? undefined,
+    endScreenUploadedAt: resultAttachment?.createdAt,
     ocrDone: latestDoneExtraction !== null,
     latestExtractionStatus,
     latestDoneExtraction,
@@ -1563,6 +1648,13 @@ function compareExtractionResultsDesc(
   return right.id.localeCompare(left.id);
 }
 
+function compareAttachmentsDesc(
+  left: SessionGraphData["matches"][number]["attachments"][number],
+  right: SessionGraphData["matches"][number]["attachments"][number],
+): number {
+  return parseTimestamp(right.createdAt) - parseTimestamp(left.createdAt);
+}
+
 function resolveWinnerTeam(winnerSide: GqlSide, teamASide: GqlSide): Team | null {
   if (winnerSide === "UNKNOWN" || teamASide === "UNKNOWN") {
     return null;
@@ -1609,6 +1701,15 @@ function mapAttendanceStatusToGql(status: AttendanceStatus): GqlAttendanceStatus
   }
 
   return "UNDECIDED";
+}
+
+function parseTimestamp(value?: string | null): number {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 function mapLane(lane: GqlLane | null | undefined): Lane | undefined {
