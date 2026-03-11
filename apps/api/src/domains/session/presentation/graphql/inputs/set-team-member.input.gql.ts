@@ -1,5 +1,5 @@
-import { Field, ID, InputType } from '@nestjs/graphql';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { Field, GraphQLISODateTime, ID, InputType } from '@nestjs/graphql';
+import { IsDate, IsEnum, IsOptional, IsString } from 'class-validator';
 import { RelayMutationInput } from '@libs/relay';
 import { Team } from '@shared/domain/enums/team.enum';
 import { Lane } from '@shared/domain/enums/lane.enum';
@@ -23,4 +23,8 @@ export class SetTeamMemberInput extends RelayMutationInput {
   @IsOptional()
   @IsEnum(Lane)
   lane?: Lane;
+
+  @Field(() => GraphQLISODateTime, { nullable: false })
+  @IsDate()
+  expectedUpdatedAt!: Date;
 }

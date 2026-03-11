@@ -395,6 +395,7 @@ describe("Presentation GraphQL (e2e)", () => {
               node {
                 id
                 title
+                updatedAt
                 attendances {
                   status
                   friend {
@@ -472,6 +473,7 @@ describe("Presentation GraphQL (e2e)", () => {
             id
             title
             matchCount
+            updatedAt
           }
         }
       `,
@@ -486,11 +488,13 @@ describe("Presentation GraphQL (e2e)", () => {
         id: string;
         title: string;
         matchCount: number;
+        updatedAt: string;
       };
     };
     expect(data.publicSession.id).toBe(toGlobalId("Session", "session-1"));
     expect(data.publicSession.title).toBe("Session session-1");
     expect(data.publicSession.matchCount).toBe(1);
+    expect(data.publicSession.updatedAt).toBe("2026-02-28T00:00:00.000Z");
   });
 
   it("enforces admin-only mutation", async () => {
@@ -690,9 +694,11 @@ function buildSessionOutput(id: string): SessionOutputDto {
     title: `Session ${id}`,
     startsAt: fixedDate(),
     status: SessionStatus.SCHEDULED,
+    isStructureLocked: false,
     attendingCount: 0,
     matchCount: 1,
     createdAt: fixedDate(),
+    updatedAt: fixedDate(),
   });
 }
 
@@ -703,7 +709,7 @@ function buildSessionDetail(id: string): SessionDetailOutputDto {
     title: `Session ${id}`,
     startsAt: fixedDate(),
     status: SessionStatus.SCHEDULED,
-    isAdminUnlocked: false,
+    isStructureLocked: false,
     editorToken: "editor-token",
     adminToken: "admin-token",
     attendances: [
@@ -733,6 +739,7 @@ function buildSessionDetail(id: string): SessionDetailOutputDto {
       }),
     ],
     createdAt: fixedDate(),
+    updatedAt: fixedDate(),
   });
 }
 

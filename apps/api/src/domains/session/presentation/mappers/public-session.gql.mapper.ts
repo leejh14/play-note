@@ -59,6 +59,7 @@ export class PublicSessionGqlMapper {
     );
     gql.comments = data.comments.map((comment) => CommentGqlMapper.toGql(comment));
     gql.createdAt = data.session.createdAt;
+    gql.updatedAt = data.session.updatedAt;
     return gql;
   }
 

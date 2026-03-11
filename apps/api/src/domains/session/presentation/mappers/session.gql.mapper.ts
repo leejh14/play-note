@@ -40,7 +40,7 @@ export class SessionGqlMapper {
     gql.attachments = [];
     gql.comments = [];
     gql.createdAt = dto.createdAt;
-    gql.updatedAt = dto.createdAt;
+    gql.updatedAt = dto.updatedAt;
     return gql;
   }
 

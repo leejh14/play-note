@@ -1,6 +1,7 @@
-import { Field, ID, InputType } from '@nestjs/graphql';
+import { Field, GraphQLISODateTime, ID, InputType } from '@nestjs/graphql';
 import {
   IsArray,
+  IsDate,
   IsEnum,
   IsOptional,
   IsString,
@@ -32,6 +33,10 @@ export class BulkSetTeamsInput extends RelayMutationInput {
   @Field(() => ID, { nullable: false })
   @IsString()
   sessionId!: string;
+
+  @Field(() => GraphQLISODateTime, { nullable: false })
+  @IsDate()
+  expectedUpdatedAt!: Date;
 
   @Field(() => [TeamAssignmentInput], { nullable: false })
   @IsArray()

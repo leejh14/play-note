@@ -15,6 +15,7 @@ export class SessionDetailOutputDto {
   readonly attendances: AttendanceOutputDto[];
   readonly teamPresetMembers: TeamPresetMemberOutputDto[];
   readonly createdAt: Date;
+  readonly updatedAt: Date;
 
   constructor(props: {
     id: string;
@@ -28,6 +29,7 @@ export class SessionDetailOutputDto {
     attendances: AttendanceOutputDto[];
     teamPresetMembers: TeamPresetMemberOutputDto[];
     createdAt: Date;
+    updatedAt: Date;
   }) {
     this.id = props.id;
     this.contentType = props.contentType;
@@ -40,5 +42,6 @@ export class SessionDetailOutputDto {
     this.attendances = props.attendances;
     this.teamPresetMembers = props.teamPresetMembers;
     this.createdAt = props.createdAt;
+    this.updatedAt = props.updatedAt;
   }
 }

@@ -15,6 +15,7 @@ import { SessionTokenGuard } from "@auth/guards/session-token.guard";
 import { SessionTokenService } from "@auth/services/session-token.service";
 import { GraphQLExceptionFilter } from "@shared/presentation/filters/graphql-exception.filter";
 import { JSONScalar } from "@shared/presentation/graphql/scalars/json.scalar";
+import { ConflictException } from "@shared/exceptions/conflict.exception";
 import { SessionMutationResolver } from "@domains/session/presentation/resolvers/mutations/session.mutation.resolver";
 import { CreateSessionUseCase } from "@domains/session/application/use-cases/commands/create-session.use-case";
 import { ConfirmSessionUseCase } from "@domains/session/application/use-cases/commands/confirm-session.use-case";
@@ -174,6 +175,7 @@ describe("CreateSession public mutation (e2e)", () => {
         attendingCount: 0,
         matchCount: 0,
         createdAt: new Date("2026-03-01T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-01T10:00:00.000Z"),
       }),
     );
   });
@@ -193,6 +195,7 @@ describe("CreateSession public mutation (e2e)", () => {
             session {
               id
               status
+              updatedAt
             }
           }
         }
@@ -250,6 +253,7 @@ describe("CreateSession public mutation (e2e)", () => {
           sessionId: "U2Vzc2lvbjpzZXNzaW9uLXB1YmxpYy0x",
           friendId: "RnJpZW5kOmZyaWVuZC0x",
           team: null,
+          expectedUpdatedAt: "2026-03-01T10:00:00.000Z",
         },
       },
       contextValue: {
@@ -268,6 +272,7 @@ describe("CreateSession public mutation (e2e)", () => {
         sessionId: "session-public-1",
         friendId: "friend-1",
         team: null,
+        expectedUpdatedAt: new Date("2026-03-01T10:00:00.000Z"),
       }),
     );
     expect(
@@ -314,6 +319,7 @@ describe("CreateSession public mutation (e2e)", () => {
           friendId: "RnJpZW5kOmZyaWVuZC0x",
           team: "A",
           lane: "TOP",
+          expectedUpdatedAt: "2026-03-01T10:00:00.000Z",
         },
       },
       contextValue: {
@@ -333,6 +339,7 @@ describe("CreateSession public mutation (e2e)", () => {
         friendId: "friend-1",
         team: Team.A,
         lane: Lane.TOP,
+        expectedUpdatedAt: new Date("2026-03-01T10:00:00.000Z"),
       }),
     );
     expect(
@@ -344,6 +351,154 @@ describe("CreateSession public mutation (e2e)", () => {
         };
       }).setTeamMember.session.teamPresetMembers,
     ).toEqual([{ team: "A", lane: "TOP" }]);
+  });
+
+  it("passes expectedUpdatedAt through confirmSession", async () => {
+    confirmSessionUseCase.execute.mockResolvedValue({ id: "session-public-1" });
+    getSessionUseCase.execute.mockResolvedValue(
+      buildSessionDetail("session-public-1", []),
+    );
+
+    const result = await graphql({
+      schema,
+      source: `
+        mutation ConfirmSession($input: ConfirmSessionInput!) {
+          confirmSession(input: $input) {
+            session {
+              id
+              updatedAt
+            }
+          }
+        }
+      `,
+      variableValues: {
+        input: {
+          sessionId: "U2Vzc2lvbjpzZXNzaW9uLXB1YmxpYy0x",
+          expectedUpdatedAt: "2026-03-01T10:00:00.000Z",
+        },
+      },
+      contextValue: {
+        req: {
+          headers: {
+            "x-session-id": "session-public-1",
+            "x-session-token": "editor-token-public",
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(confirmSessionUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-public-1",
+        expectedUpdatedAt: new Date("2026-03-01T10:00:00.000Z"),
+      }),
+    );
+  });
+
+  it("passes expectedUpdatedAt through bulkSetTeams", async () => {
+    bulkSetTeamsUseCase.execute.mockResolvedValue({ id: "session-public-1" });
+    getSessionUseCase.execute.mockResolvedValue(
+      buildSessionDetail("session-public-1", [
+        new TeamPresetMemberOutputDto({
+          id: "preset-1",
+          friendId: "friend-1",
+          team: Team.A,
+          lane: Lane.TOP,
+        }),
+      ]),
+    );
+
+    const result = await graphql({
+      schema,
+      source: `
+        mutation BulkSetTeams($input: BulkSetTeamsInput!) {
+          bulkSetTeams(input: $input) {
+            session {
+              teamPresetMembers {
+                team
+              }
+            }
+          }
+        }
+      `,
+      variableValues: {
+        input: {
+          sessionId: "U2Vzc2lvbjpzZXNzaW9uLXB1YmxpYy0x",
+          expectedUpdatedAt: "2026-03-01T10:00:00.000Z",
+          assignments: [
+            {
+              friendId: "RnJpZW5kOmZyaWVuZC0x",
+              team: "A",
+              lane: "TOP",
+            },
+          ],
+        },
+      },
+      contextValue: {
+        req: {
+          headers: {
+            "x-session-id": "session-public-1",
+            "x-session-token": "editor-token-public",
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(bulkSetTeamsUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-public-1",
+        expectedUpdatedAt: new Date("2026-03-01T10:00:00.000Z"),
+        assignments: [
+          expect.objectContaining({
+            friendId: "friend-1",
+            team: Team.A,
+            lane: Lane.TOP,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("returns SESSION_CONFLICT when setAttendance use case rejects a stale update", async () => {
+    setAttendanceUseCase.execute.mockRejectedValue(
+      new ConflictException({
+        message: "Session has been updated by another user",
+        errorCode: "SESSION_CONFLICT",
+      }),
+    );
+
+    const result = await graphql({
+      schema,
+      source: `
+        mutation SetAttendance($input: SetAttendanceInput!) {
+          setAttendance(input: $input) {
+            session {
+              id
+            }
+          }
+        }
+      `,
+      variableValues: {
+        input: {
+          sessionId: "U2Vzc2lvbjpzZXNzaW9uLXB1YmxpYy0x",
+          friendId: "RnJpZW5kOmZyaWVuZC0x",
+          status: "ATTENDING",
+          expectedUpdatedAt: "2026-03-01T10:00:00.000Z",
+        },
+      },
+      contextValue: {
+        req: {
+          headers: {
+            "x-session-id": "session-public-1",
+            "x-session-token": "editor-token-public",
+          },
+        },
+      },
+    });
+
+    expect(result.errors?.[0]?.extensions?.code).toBe("SESSION_CONFLICT");
   });
 });
 
@@ -369,5 +524,6 @@ function buildSessionDetail(
     ],
     teamPresetMembers,
     createdAt: new Date("2026-03-01T10:00:00.000Z"),
+    updatedAt: new Date("2026-03-01T10:00:00.000Z"),
   });
 }

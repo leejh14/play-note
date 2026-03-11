@@ -24,6 +24,7 @@ export interface FindAllSessionArgs extends ConnectionArgsDto {
 
 export interface ISessionRepository {
   findById(id: string): Promise<Session | null>;
+  findByIdForUpdate(id: string): Promise<Session | null>;
   findByToken(token: string): Promise<Session | null>;
   findAll(args: FindAllSessionArgs): Promise<ConnectionDto<Session>>;
   save(session: Session): Promise<void>;

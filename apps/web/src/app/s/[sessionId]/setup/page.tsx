@@ -19,6 +19,7 @@ import {
   confirmSessionSetup,
   fetchSessionById,
   getSessionToken,
+  isSessionConflictError,
   saveSessionToken,
   type AttendanceStatus,
   type Lane,
@@ -47,17 +48,34 @@ const shareThumbnailPathByContentType: Record<Session["contentType"], string> = 
   lol: "/share/session-lol.svg",
   futsal: "/share/session-futsal.svg",
 };
+const CONFLICT_NOTICE_MESSAGE =
+  "다른 사용자가 먼저 변경했어요. 최신 상태로 다시 불러왔습니다.";
+const CONFLICT_RELOAD_FAILED_MESSAGE =
+  "최신 상태를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.";
+const REMOTE_UPDATE_NOTICE_MESSAGE =
+  "다른 사용자의 변경 사항을 반영했어요.";
+const POLL_INTERVAL_MS = 5000;
 
 export default function SessionSetupPage() {
   const params = useParams<{ sessionId: string }>();
   const router = useRouter();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPageVisible, setIsPageVisible] = useState(true);
+  const [setupNotice, setSetupNotice] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
   const [isKakaoReady, setIsKakaoReady] = useState(false);
   const shareMenuRef = useRef<HTMLDivElement | null>(null);
   const shareCopiedTimeoutRef = useRef<number | null>(null);
+  const setupNoticeTimeoutRef = useRef<number | null>(null);
+  const pollingTimeoutRef = useRef<number | null>(null);
+  const isPollingInFlightRef = useRef(false);
+  const refreshSessionFromPollingRef = useRef<() => Promise<boolean>>(
+    async () => true,
+  );
+  const sessionRef = useRef<Session | null | undefined>(undefined);
+  const isSavingRef = useRef(false);
   const sessionId = params.sessionId;
 
   useEffect(() => {
@@ -88,6 +106,12 @@ export default function SessionSetupPage() {
       if (shareCopiedTimeoutRef.current) {
         window.clearTimeout(shareCopiedTimeoutRef.current);
       }
+      if (setupNoticeTimeoutRef.current) {
+        window.clearTimeout(setupNoticeTimeoutRef.current);
+      }
+      if (pollingTimeoutRef.current) {
+        window.clearTimeout(pollingTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -110,6 +134,148 @@ export default function SessionSetupPage() {
       document.removeEventListener("touchstart", handlePointerDown);
     };
   }, [isShareMenuOpen]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
+    isSavingRef.current = isSaving;
+  }, [isSaving]);
+
+  const applyLatestSession = (
+    nextSession: Session,
+    options?: {
+      noticeMessage?: string;
+      redirectOnConfirmed?: boolean;
+    },
+  ): boolean => {
+    setSession(nextSession);
+
+    if (options?.redirectOnConfirmed && nextSession.status !== "scheduled") {
+      router.push(`/s/${nextSession.id}`);
+      return false;
+    }
+
+    if (options?.noticeMessage) {
+      showSetupNotice(options.noticeMessage);
+    }
+
+    return true;
+  };
+
+  const reloadAfterConflict = async () => {
+    const currentSession = sessionRef.current;
+    if (!currentSession) {
+      showSetupNotice(CONFLICT_RELOAD_FAILED_MESSAGE);
+      return;
+    }
+
+    const latestSession = await fetchSessionById(currentSession.id);
+    if (latestSession) {
+      setSession(latestSession);
+      showSetupNotice(CONFLICT_NOTICE_MESSAGE);
+      return;
+    }
+
+    showSetupNotice(CONFLICT_RELOAD_FAILED_MESSAGE);
+  };
+
+  refreshSessionFromPollingRef.current = async (): Promise<boolean> => {
+    const currentSession = sessionRef.current;
+    if (
+      !currentSession ||
+      currentSession.status !== "scheduled" ||
+      isSavingRef.current ||
+      isPollingInFlightRef.current
+    ) {
+      return true;
+    }
+
+    isPollingInFlightRef.current = true;
+
+    try {
+      const nextSession = await fetchSessionById(currentSession.id);
+      const latestSession = sessionRef.current;
+
+      if (!nextSession || !latestSession) {
+        return true;
+      }
+
+      if (nextSession.updatedAt === latestSession.updatedAt) {
+        return true;
+      }
+
+      return applyLatestSession(nextSession, {
+        noticeMessage:
+          nextSession.status === "scheduled" ? REMOTE_UPDATE_NOTICE_MESSAGE : undefined,
+        redirectOnConfirmed: true,
+      });
+    } finally {
+      isPollingInFlightRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    setIsPageVisible(document.visibilityState === "visible");
+
+    const handleVisibilityChange = () => {
+      const nextIsVisible = document.visibilityState === "visible";
+      setIsPageVisible(nextIsVisible);
+
+      if (nextIsVisible) {
+        void refreshSessionFromPollingRef.current();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      !session ||
+      session.status !== "scheduled" ||
+      !isPageVisible ||
+      isSaving
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const scheduleNextPoll = () => {
+      pollingTimeoutRef.current = window.setTimeout(async () => {
+        if (cancelled) {
+          return;
+        }
+
+        const shouldContinue = await refreshSessionFromPollingRef.current();
+        if (cancelled || !shouldContinue) {
+          return;
+        }
+
+        scheduleNextPoll();
+      }, POLL_INTERVAL_MS);
+    };
+
+    scheduleNextPoll();
+
+    return () => {
+      cancelled = true;
+      if (pollingTimeoutRef.current) {
+        window.clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    };
+  }, [isPageVisible, isSaving, session?.id, session?.status]);
 
   const members = useMemo<SetupMember[]>(() => {
     if (!session) {
@@ -162,6 +328,16 @@ export default function SessionSetupPage() {
     shareCopiedTimeoutRef.current = window.setTimeout(() => {
       setShareCopied(false);
     }, 2000);
+  };
+
+  const showSetupNotice = (message: string) => {
+    setSetupNotice(message);
+    if (setupNoticeTimeoutRef.current) {
+      window.clearTimeout(setupNoticeTimeoutRef.current);
+    }
+    setupNoticeTimeoutRef.current = window.setTimeout(() => {
+      setSetupNotice(null);
+    }, 4000);
   };
 
   const buildShareUrl = () => {
@@ -249,8 +425,15 @@ export default function SessionSetupPage() {
         sessionId: session.id,
         friendId: member.id,
         status,
+        expectedUpdatedAt: session.updatedAt,
       });
       setSession(updatedSession);
+    } catch (error) {
+      if (isSessionConflictError(error)) {
+        await reloadAfterConflict();
+        return;
+      }
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -273,8 +456,15 @@ export default function SessionSetupPage() {
         friendId: candidate.id,
         team,
         lane: candidate.lane,
+        expectedUpdatedAt: session.updatedAt,
       });
       setSession(updatedSession);
+    } catch (error) {
+      if (isSessionConflictError(error)) {
+        await reloadAfterConflict();
+        return;
+      }
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -291,8 +481,15 @@ export default function SessionSetupPage() {
         sessionId: session.id,
         friendId: member.id,
         team: null,
+        expectedUpdatedAt: session.updatedAt,
       });
       setSession(updatedSession);
+    } catch (error) {
+      if (isSessionConflictError(error)) {
+        await reloadAfterConflict();
+        return;
+      }
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -315,8 +512,15 @@ export default function SessionSetupPage() {
         friendId: member.id,
         team: member.team,
         lane,
+        expectedUpdatedAt: session.updatedAt,
       });
       setSession(updatedSession);
+    } catch (error) {
+      if (isSessionConflictError(error)) {
+        await reloadAfterConflict();
+        return;
+      }
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -327,15 +531,25 @@ export default function SessionSetupPage() {
       return;
     }
 
+    if (session.status !== "scheduled") {
+      router.push(`/s/${session.id}`);
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const updatedSession =
-        session.status === "scheduled"
-          ? await confirmSessionSetup(session.id)
-          : session;
-
+      const updatedSession = await confirmSessionSetup(
+        session.id,
+        session.updatedAt,
+      );
       setSession(updatedSession);
       router.push(`/s/${updatedSession.id}`);
+    } catch (error) {
+      if (isSessionConflictError(error)) {
+        await reloadAfterConflict();
+        return;
+      }
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -394,6 +608,14 @@ export default function SessionSetupPage() {
           ) : null}
         </div>
       </div>
+
+      {setupNotice ? (
+        <div className="px-[24px] pb-[12px]" aria-live="polite">
+          <p className="rounded-[var(--radius-md)] border border-[#F4D27A] bg-[#FFF5D6] px-[14px] py-[10px] text-[13px] font-medium text-[#8B5E00]">
+            {setupNotice}
+          </p>
+        </div>
+      ) : null}
 
       <div className="flex w-full items-center gap-[8px] bg-[var(--primary-light)] px-[24px] py-[12px]">
         <span className="rounded-[var(--radius-full)] bg-[var(--primary)] px-[10px] py-[3px] text-[11px] font-semibold text-[var(--white)]">

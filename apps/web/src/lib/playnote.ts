@@ -136,6 +136,7 @@ const SESSION_DETAIL_FIELDS = `
   isStructureLocked
   effectiveLocked
   startsAt
+  updatedAt
   attendingCount
   matchCount
   attendances {
@@ -179,6 +180,7 @@ const PUBLIC_SESSION_DETAIL_FIELDS = `
   isStructureLocked
   effectiveLocked
   startsAt
+  updatedAt
   attendingCount
   matchCount
   attendances {
@@ -222,6 +224,7 @@ const SESSION_SUMMARY_FIELDS = `
   isStructureLocked
   effectiveLocked
   startsAt
+  updatedAt
   attendingCount
   matchCount
   attendances {
@@ -391,6 +394,16 @@ const CONFIRM_SESSION_MUTATION = `
   }
 `;
 
+const BULK_SET_TEAMS_MUTATION = `
+  mutation BulkSetTeams($input: BulkSetTeamsInput!) {
+    bulkSetTeams(input: $input) {
+      session {
+        ${SESSION_DETAIL_FIELDS}
+      }
+    }
+  }
+`;
+
 const ADMIN_LOCK_MUTATION = `
   mutation AdminLock($input: AdminLockInput!) {
     adminLock(input: $input) {
@@ -483,6 +496,7 @@ type SessionGraphData = {
   isStructureLocked: boolean;
   effectiveLocked: boolean;
   startsAt: string;
+  updatedAt: string;
   attendingCount: number;
   matchCount: number;
   attendances: Array<{
@@ -638,6 +652,12 @@ type ConfirmSessionMutationData = {
   };
 };
 
+type BulkSetTeamsMutationData = {
+  bulkSetTeams: {
+    session: SessionQueryData["session"] | null;
+  };
+};
+
 type AdminLockMutationData = {
   adminLock: {
     session: SessionQueryData["session"] | null;
@@ -767,6 +787,7 @@ export interface Session {
   isStructureLocked: boolean;
   effectiveLocked: boolean;
   startsAt: string;
+  updatedAt: string;
   date: string;
   time: string;
   memberCount: number;
@@ -814,6 +835,10 @@ class GraphQLRequestError extends Error {
     this.name = "GraphQLRequestError";
     this.code = errors[0]?.extensions?.code;
   }
+}
+
+export function isSessionConflictError(error: unknown): boolean {
+  return error instanceof GraphQLRequestError && error.code === "SESSION_CONFLICT";
 }
 
 export function toGlobalId(typeName: string, localId: string): string {
@@ -1028,6 +1053,7 @@ export async function updateAttendance(input: {
   sessionId: string;
   friendId: string;
   status: AttendanceStatus;
+  expectedUpdatedAt: string;
 }): Promise<Session> {
   const auth = getRequiredSessionAuth(input.sessionId);
   const data = await graphqlRequest<
@@ -1038,6 +1064,7 @@ export async function updateAttendance(input: {
         sessionId: string;
         friendId: string;
         status: GqlAttendanceStatus;
+        expectedUpdatedAt: string;
       };
     }
   >(SET_ATTENDANCE_MUTATION, {
@@ -1046,6 +1073,7 @@ export async function updateAttendance(input: {
       sessionId: ensureGlobalId("Session", input.sessionId),
       friendId: ensureGlobalId("Friend", input.friendId),
       status: mapAttendanceStatusToGql(input.status),
+      expectedUpdatedAt: input.expectedUpdatedAt,
     },
   }, auth);
 
@@ -1058,6 +1086,7 @@ export async function updateTeamMember(input: {
   friendId: string;
   team: Team | null;
   lane?: Lane;
+  expectedUpdatedAt: string;
 }): Promise<Session> {
   const auth = getRequiredSessionAuth(input.sessionId);
   const data = await graphqlRequest<
@@ -1069,6 +1098,7 @@ export async function updateTeamMember(input: {
         friendId: string;
         team: GqlTeam | null;
         lane?: GqlLane;
+        expectedUpdatedAt: string;
       };
     }
   >(SET_TEAM_MEMBER_MUTATION, {
@@ -1078,6 +1108,7 @@ export async function updateTeamMember(input: {
       friendId: ensureGlobalId("Friend", input.friendId),
       team: input.team,
       lane: input.lane,
+      expectedUpdatedAt: input.expectedUpdatedAt,
     },
   }, auth);
 
@@ -1085,7 +1116,47 @@ export async function updateTeamMember(input: {
   return requireMappedSession(data.setTeamMember.session);
 }
 
-export async function confirmSessionSetup(sessionId: string): Promise<Session> {
+export async function bulkSetTeams(input: {
+  sessionId: string;
+  expectedUpdatedAt: string;
+  assignments: { friendId: string; team: Team; lane?: Lane }[];
+}): Promise<Session> {
+  const auth = getRequiredSessionAuth(input.sessionId);
+  const data = await graphqlRequest<
+    BulkSetTeamsMutationData,
+    {
+      input: {
+        clientMutationId: string;
+        sessionId: string;
+        expectedUpdatedAt: string;
+        assignments: {
+          friendId: string;
+          team: GqlTeam;
+          lane?: GqlLane;
+        }[];
+      };
+    }
+  >(BULK_SET_TEAMS_MUTATION, {
+    input: {
+      clientMutationId: "bulk-set-teams",
+      sessionId: ensureGlobalId("Session", input.sessionId),
+      expectedUpdatedAt: input.expectedUpdatedAt,
+      assignments: input.assignments.map((assignment) => ({
+        friendId: ensureGlobalId("Friend", assignment.friendId),
+        team: assignment.team,
+        ...(assignment.lane ? { lane: assignment.lane } : {}),
+      })),
+    },
+  }, auth);
+
+  touchSession(auth.localSessionId);
+  return requireMappedSession(data.bulkSetTeams.session);
+}
+
+export async function confirmSessionSetup(
+  sessionId: string,
+  expectedUpdatedAt: string,
+): Promise<Session> {
   const auth = getRequiredSessionAuth(sessionId);
   const data = await graphqlRequest<
     ConfirmSessionMutationData,
@@ -1093,12 +1164,14 @@ export async function confirmSessionSetup(sessionId: string): Promise<Session> {
       input: {
         clientMutationId: string;
         sessionId: string;
+        expectedUpdatedAt: string;
       };
     }
   >(CONFIRM_SESSION_MUTATION, {
     input: {
       clientMutationId: "confirm-session",
       sessionId: ensureGlobalId("Session", sessionId),
+      expectedUpdatedAt,
     },
   }, auth);
 
@@ -1516,6 +1589,7 @@ function mapSession(session: SessionGraphData): Session {
     isStructureLocked: session.isStructureLocked,
     effectiveLocked: session.effectiveLocked,
     startsAt: session.startsAt,
+    updatedAt: session.updatedAt,
     date: DATE_FORMATTER.format(startsAt),
     time: TIME_FORMATTER.format(startsAt),
     memberCount: session.attendances.length,

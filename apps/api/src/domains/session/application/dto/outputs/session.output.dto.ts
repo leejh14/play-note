@@ -11,6 +11,7 @@ export class SessionOutputDto {
   readonly attendingCount: number;
   readonly matchCount: number;
   readonly createdAt: Date;
+  readonly updatedAt: Date;
 
   constructor(props: {
     id: string;
@@ -22,6 +23,7 @@ export class SessionOutputDto {
     attendingCount: number;
     matchCount: number;
     createdAt: Date;
+    updatedAt: Date;
   }) {
     this.id = props.id;
     this.contentType = props.contentType;
@@ -32,5 +34,6 @@ export class SessionOutputDto {
     this.attendingCount = props.attendingCount;
     this.matchCount = props.matchCount;
     this.createdAt = props.createdAt;
+    this.updatedAt = props.updatedAt;
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { EntityManager } from '@mikro-orm/core';
+import { EntityManager, LockMode } from '@mikro-orm/core';
 import { ConnectionDto, EdgeDto, PageInfoDto } from '@libs/relay';
 import { Session } from '@domains/session/domain/aggregates/session.aggregate';
 import {
@@ -25,6 +25,14 @@ export class MikroSessionRepository implements ISessionRepository {
   async findById(id: string): Promise<Session | null> {
     const orm = await this.em.findOne(SessionOrmEntity, { id }, {
       populate: ['attendances', 'teamPresetMembers'],
+    });
+    return orm ? this.toDomainEntity(orm) : null;
+  }
+
+  async findByIdForUpdate(id: string): Promise<Session | null> {
+    const orm = await this.em.findOne(SessionOrmEntity, { id }, {
+      populate: ['attendances', 'teamPresetMembers'],
+      lockMode: LockMode.PESSIMISTIC_WRITE,
     });
     return orm ? this.toDomainEntity(orm) : null;
   }

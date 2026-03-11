@@ -118,4 +118,7 @@ export class PublicSession {
 
   @Field(() => GraphQLISODateTime, { nullable: false })
   createdAt!: Date;
+
+  @Field(() => GraphQLISODateTime, { nullable: false })
+  updatedAt!: Date;
 }

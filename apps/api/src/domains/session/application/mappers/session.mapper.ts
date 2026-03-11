@@ -22,6 +22,7 @@ export class SessionMapper {
       attendingCount,
       matchCount,
       createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
     });
   }
 
@@ -55,6 +56,7 @@ export class SessionMapper {
       attendances,
       teamPresetMembers,
       createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
     });
   }
 

@@ -27,6 +27,7 @@ import { GetSessionUseCase } from '@domains/session/application/use-cases/querie
 import { GetCommentUseCase } from '@domains/session/application/use-cases/queries/get-comment.use-case';
 import { CreateSessionInputDto } from '@domains/session/application/dto/inputs/create-session.input.dto';
 import { SessionIdInputDto } from '@domains/session/application/dto/inputs/session-id.input.dto';
+import { ConfirmSessionInputDto } from '@domains/session/application/dto/inputs/confirm-session.input.dto';
 import { UpdateSessionInputDto } from '@domains/session/application/dto/inputs/update-session.input.dto';
 import { SetAttendanceInputDto } from '@domains/session/application/dto/inputs/set-attendance.input.dto';
 import { SetTeamMemberInputDto } from '@domains/session/application/dto/inputs/set-team-member.input.dto';
@@ -121,8 +122,9 @@ export class SessionMutationResolver {
     const sessionId = this.decodeGlobalId(input.sessionId, 'Session');
     this.assertSessionAccess(auth, sessionId);
     const output = await this.confirmSessionUseCase.execute(
-      new SessionIdInputDto({
+      new ConfirmSessionInputDto({
         sessionId,
+        expectedUpdatedAt: input.expectedUpdatedAt,
       }),
     );
     const session = await this.getSessionUseCase.execute(
@@ -249,6 +251,7 @@ export class SessionMutationResolver {
         sessionId,
         friendId,
         status: input.status,
+        expectedUpdatedAt: input.expectedUpdatedAt,
       }),
     );
     const session = await this.getSessionUseCase.execute(
@@ -278,6 +281,7 @@ export class SessionMutationResolver {
         friendId,
         team: input.team,
         lane: input.lane,
+        expectedUpdatedAt: input.expectedUpdatedAt,
       }),
     );
     const session = await this.getSessionUseCase.execute(
@@ -303,6 +307,7 @@ export class SessionMutationResolver {
     const output = await this.bulkSetTeamsUseCase.execute(
       new BulkSetTeamsInputDto({
         sessionId,
+        expectedUpdatedAt: input.expectedUpdatedAt,
         assignments: input.assignments.map((assignment) => ({
           friendId: this.decodeGlobalId(assignment.friendId, 'Friend'),
           team: assignment.team,
